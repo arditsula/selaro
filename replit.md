@@ -66,6 +66,43 @@ Retrieves all logged calls.
 }
 ```
 
+### POST /api/twilio/voice
+Twilio-compatible voice webhook for incoming calls.
+
+**Content-Type:** `application/x-www-form-urlencoded`
+
+**Request Body (form-encoded):**
+- `From` - Caller's phone number
+- `To` - Receiving phone number
+- `CallSid` - Twilio call identifier
+- `SpeechResult` - (optional) Transcribed speech from caller
+
+**Response:** TwiML XML with German voice message
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Danke! Wir melden uns bald zurück.</Say>
+</Response>
+```
+
+**Call Logging:**
+- Creates a call log with:
+  - name: SpeechResult or "Unknown"
+  - phone: From or "Unknown"
+  - service: "Phone inquiry"
+  - preferredTime: "Call back ASAP"
+  - status: "New"
+
+### GET /api/health
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "ok": true
+}
+```
+
 ## Features
 
 ### 1. Hero Section
