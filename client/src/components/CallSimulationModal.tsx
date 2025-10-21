@@ -1,11 +1,20 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { User, Bot } from "lucide-react";
 
 interface CallSimulationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onLogCall: (callData: {
+    name: string;
+    phone: string;
+    service: string;
+    preferredTime: string;
+  }) => void;
 }
 
 const transcript = [
@@ -20,9 +29,16 @@ const transcript = [
   { speaker: 'ai', message: "You're welcome, Michael! We'll see you at 3:30 PM. Feel better soon!" }
 ];
 
-export default function CallSimulationModal({ open, onOpenChange }: CallSimulationModalProps) {
+export default function CallSimulationModal({ open, onOpenChange, onLogCall }: CallSimulationModalProps) {
+  const [formData, setFormData] = useState({
+    name: "Anna Müller",
+    phone: "0176 1234567",
+    service: "Zahnreinigung",
+    preferredTime: "Morgen 10:00"
+  });
+
   const handleEndDemo = () => {
-    console.log('Demo ended - would log call details');
+    onLogCall(formData);
     onOpenChange(false);
   };
 
@@ -72,14 +88,57 @@ export default function CallSimulationModal({ open, onOpenChange }: CallSimulati
           ))}
         </div>
 
-        <div className="pt-6 pb-2 border-t border-[#F3F4F6]">
-          <div className="mb-6 flex items-center justify-center gap-2 text-[#9CA3AF]">
+        <div className="pt-6 pb-2 border-t border-[#F3F4F6] space-y-6">
+          <div className="mb-4 flex items-center justify-center gap-2 text-[#9CA3AF]">
             <div className="flex gap-1">
               {[...Array(20)].map((_, i) => (
                 <div key={i} className="w-1 bg-[#D1FAE5] rounded-full" style={{ height: `${Math.random() * 20 + 10}px` }} />
               ))}
             </div>
             <span className="text-sm font-medium">Audio waveform placeholder</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name" className="text-sm font-medium text-[#111827] mb-2 block">Name</Label>
+              <Input 
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="border-[#E5E7EB]"
+                data-testid="input-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone" className="text-sm font-medium text-[#111827] mb-2 block">Phone</Label>
+              <Input 
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="border-[#E5E7EB]"
+                data-testid="input-phone"
+              />
+            </div>
+            <div>
+              <Label htmlFor="service" className="text-sm font-medium text-[#111827] mb-2 block">Service</Label>
+              <Input 
+                id="service"
+                value={formData.service}
+                onChange={(e) => setFormData({ ...formData, service: e.target.value })}
+                className="border-[#E5E7EB]"
+                data-testid="input-service"
+              />
+            </div>
+            <div>
+              <Label htmlFor="preferredTime" className="text-sm font-medium text-[#111827] mb-2 block">Preferred Time</Label>
+              <Input 
+                id="preferredTime"
+                value={formData.preferredTime}
+                onChange={(e) => setFormData({ ...formData, preferredTime: e.target.value })}
+                className="border-[#E5E7EB]"
+                data-testid="input-preferred-time"
+              />
+            </div>
           </div>
           
           <Button 
