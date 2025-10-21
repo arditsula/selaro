@@ -9,59 +9,59 @@ const integrations = [
     icon: Phone,
     title: "Connect Twilio",
     description: "Link your phone number to receive calls",
-    color: "text-red-500"
+    color: "text-[#00C896]"
   },
   {
     id: 'faq',
     icon: FileText,
     title: "Upload FAQ",
     description: "Train the AI with your clinic's information",
-    color: "text-blue-500"
+    color: "text-[#00C896]"
   },
   {
     id: 'whatsapp',
     icon: MessageCircle,
     title: "Enable WhatsApp",
     description: "Allow patients to message your AI receptionist",
-    color: "text-green-500"
+    color: "text-[#00C896]"
   }
 ];
 
 export default function ConnectClinic() {
   return (
-    <section className="py-24 px-6">
+    <section className="py-32 px-6 bg-white">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
+        <h2 className="text-5xl md:text-6xl font-bold text-center mb-6 text-[#111827]">
           Connect Your Clinic
         </h2>
-        <p className="text-center text-muted-foreground mb-12 text-lg">
+        <p className="text-center text-[#6B7280] mb-16 text-xl font-light">
           Quick setup to get your AI receptionist running
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {integrations.map((integration) => (
-            <Card key={integration.id} className="p-8 relative overflow-hidden">
+            <Card key={integration.id} className="p-10 relative overflow-hidden shadow-lg border-[#E5E7EB] bg-white">
               <Badge 
                 variant="outline" 
-                className="absolute top-4 right-4 bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                className="absolute top-6 right-6 bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]"
               >
                 Coming Soon
               </Badge>
               
-              <div className={`w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6 ${integration.color}`}>
+              <div className={`w-16 h-16 rounded-2xl bg-[#ECFDF5] flex items-center justify-center mb-8 ${integration.color}`}>
                 <integration.icon className="w-8 h-8" />
               </div>
               
-              <h3 className="text-xl font-semibold mb-3">
+              <h3 className="text-2xl font-semibold mb-4 text-[#111827]">
                 {integration.title}
               </h3>
               
-              <p className="text-muted-foreground mb-6">
+              <p className="text-[#6B7280] mb-8 text-lg">
                 {integration.description}
               </p>
               
               <Button 
-                className="w-full" 
+                className="w-full opacity-50" 
                 disabled
                 data-testid={`button-connect-${integration.id}`}
               >

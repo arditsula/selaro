@@ -59,48 +59,48 @@ const mockCallLogs: CallLog[] = [
 ];
 
 const statusConfig = {
-  pending: { label: "Pending", className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
-  scheduled: { label: "Scheduled", className: "bg-green-500/10 text-green-600 border-green-500/20" },
-  contacted: { label: "Contacted", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" }
+  pending: { label: "Pending", className: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
+  scheduled: { label: "Scheduled", className: "bg-[#D1FAE5] text-[#065F46] border-[#A7F3D0]" },
+  contacted: { label: "Contacted", className: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]" }
 };
 
 export default function DashboardPreview() {
   return (
-    <section id="dashboard-preview" className="py-24 px-6 bg-card">
+    <section id="dashboard-preview" className="py-32 px-6 bg-[#F9FAFB]">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
+        <h2 className="text-5xl md:text-6xl font-bold text-center mb-6 text-[#111827]">
           Dashboard Preview
         </h2>
-        <p className="text-center text-muted-foreground mb-12 text-lg">
+        <p className="text-center text-[#6B7280] mb-16 text-xl font-light">
           See all patient interactions in one place
         </p>
         
-        <div className="bg-background rounded-2xl border shadow-lg overflow-hidden">
+        <div className="bg-white rounded-3xl border border-[#E5E7EB] shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full" data-testid="table-calls">
-              <thead className="bg-muted/50 border-b">
+              <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Phone</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Service</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Preferred Time</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Created</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold uppercase tracking-wider text-[#6B7280]">Name</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold uppercase tracking-wider text-[#6B7280]">Phone</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold uppercase tracking-wider text-[#6B7280]">Service</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold uppercase tracking-wider text-[#6B7280]">Preferred Time</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold uppercase tracking-wider text-[#6B7280]">Status</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold uppercase tracking-wider text-[#6B7280]">Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {mockCallLogs.map((log, index) => (
-                  <tr key={log.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'} data-testid={`row-call-${log.id}`}>
-                    <td className="px-6 py-4 font-medium" data-testid={`text-name-${log.id}`}>{log.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{log.phone}</td>
-                    <td className="px-6 py-4">{log.service}</td>
-                    <td className="px-6 py-4">{log.preferredTime}</td>
-                    <td className="px-6 py-4">
+              <tbody className="divide-y divide-[#F3F4F6]">
+                {mockCallLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-[#F9FAFB] transition-colors" data-testid={`row-call-${log.id}`}>
+                    <td className="px-8 py-5 font-medium text-[#111827]" data-testid={`text-name-${log.id}`}>{log.name}</td>
+                    <td className="px-8 py-5 text-[#6B7280]">{log.phone}</td>
+                    <td className="px-8 py-5 text-[#111827]">{log.service}</td>
+                    <td className="px-8 py-5 text-[#6B7280]">{log.preferredTime}</td>
+                    <td className="px-8 py-5">
                       <Badge variant="outline" className={statusConfig[log.status].className} data-testid={`badge-status-${log.id}`}>
                         {statusConfig[log.status].label}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground text-sm">{log.created}</td>
+                    <td className="px-8 py-5 text-[#9CA3AF] text-sm">{log.created}</td>
                   </tr>
                 ))}
               </tbody>
