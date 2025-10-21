@@ -9,12 +9,7 @@ import { User, Bot } from "lucide-react";
 interface CallSimulationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onLogCall: (callData: {
-    name: string;
-    phone: string;
-    service: string;
-    preferredTime: string;
-  }) => void;
+  onLogCall: () => void;
 }
 
 const transcript = [
@@ -36,10 +31,28 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
     service: "Zahnreinigung",
     preferredTime: "Morgen 10:00"
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleEndDemo = () => {
-    onLogCall(formData);
-    onOpenChange(false);
+  const handleEndDemo = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/calls/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        onLogCall();
+        onOpenChange(false);
+      } else {
+        console.error('Failed to log call');
+      }
+    } catch (error) {
+      console.error('Error logging call:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -143,10 +156,11 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
           
           <Button 
             onClick={handleEndDemo} 
-            className="w-full bg-[#00C896] hover:bg-[#00B386] text-white py-6 text-lg shadow-lg"
+            disabled={isSubmitting}
+            className="w-full bg-[#00C896] hover:bg-[#00B386] text-white py-6 text-lg shadow-lg disabled:opacity-50"
             data-testid="button-end-demo"
           >
-            End Demo & Log
+            {isSubmitting ? 'Logging...' : 'End Demo & Log'}
           </Button>
         </div>
       </DialogContent>

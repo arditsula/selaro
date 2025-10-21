@@ -1,14 +1,15 @@
-import DashboardPreview, { type CallLog } from '../DashboardPreview';
+import DashboardPreview from '../DashboardPreview';
+import type { CallLog } from '@shared/schema';
 
 const mockLogs: CallLog[] = [
   {
-    id: 1,
+    id: "1",
     name: "Test Patient",
     phone: "123-456-7890",
     service: "Cleaning",
     preferredTime: "Tomorrow",
-    status: "new",
-    created: "Just now"
+    status: "New",
+    createdAt: new Date().toISOString()
   }
 ];
 

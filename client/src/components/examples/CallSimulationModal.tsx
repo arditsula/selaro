@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 export default function CallSimulationModalExample() {
   const [open, setOpen] = useState(false);
   
-  const handleLogCall = (callData: any) => {
-    console.log('Call logged:', callData);
+  const handleLogCall = () => {
+    console.log('Call logged');
   };
   
   return (

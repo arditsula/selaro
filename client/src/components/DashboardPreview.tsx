@@ -1,30 +1,35 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-
-export interface CallLog {
-  id: number;
-  name: string;
-  phone: string;
-  service: string;
-  preferredTime: string;
-  status: 'new' | 'pending' | 'scheduled' | 'contacted';
-  created: string;
-}
+import type { CallLog } from "@shared/schema";
 
 interface DashboardPreviewProps {
   callLogs: CallLog[];
   onRefresh: () => void;
+  isRefreshing?: boolean;
 }
 
 const statusConfig = {
-  new: { label: "New", className: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]" },
-  pending: { label: "Pending", className: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
-  scheduled: { label: "Scheduled", className: "bg-[#D1FAE5] text-[#065F46] border-[#A7F3D0]" },
-  contacted: { label: "Contacted", className: "bg-[#E0E7FF] text-[#3730A3] border-[#C7D2FE]" }
+  New: { label: "New", className: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]" },
+  Called: { label: "Called", className: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
+  Booked: { label: "Booked", className: "bg-[#D1FAE5] text-[#065F46] border-[#A7F3D0]" },
 };
 
-export default function DashboardPreview({ callLogs = [], onRefresh }: DashboardPreviewProps) {
+function formatCreatedAt(createdAt: string): string {
+  const date = new Date(createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+}
+
+export default function DashboardPreview({ callLogs = [], onRefresh, isRefreshing = false }: DashboardPreviewProps) {
   return (
     <section id="dashboard-preview" className="py-32 px-6 bg-[#F9FAFB]">
       <div className="max-w-7xl mx-auto">
@@ -39,10 +44,11 @@ export default function DashboardPreview({ callLogs = [], onRefresh }: Dashboard
           </div>
           <Button 
             onClick={onRefresh}
-            className="gap-2 bg-[#00C896] hover:bg-[#00B386] text-white shadow-lg"
+            disabled={isRefreshing}
+            className="gap-2 bg-[#00C896] hover:bg-[#00B386] text-white shadow-lg disabled:opacity-50"
             data-testid="button-refresh"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -79,7 +85,7 @@ export default function DashboardPreview({ callLogs = [], onRefresh }: Dashboard
                           {statusConfig[log.status].label}
                         </Badge>
                       </td>
-                      <td className="px-8 py-5 text-[#9CA3AF] text-sm">{log.created}</td>
+                      <td className="px-8 py-5 text-[#9CA3AF] text-sm">{formatCreatedAt(log.createdAt)}</td>
                     </tr>
                   ))
                 )}

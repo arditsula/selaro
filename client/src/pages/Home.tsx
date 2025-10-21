@@ -1,91 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Hero from '@/components/Hero';
 import HowItWorks from '@/components/HowItWorks';
-import DashboardPreview, { type CallLog } from '@/components/DashboardPreview';
+import DashboardPreview from '@/components/DashboardPreview';
 import ConnectClinic from '@/components/ConnectClinic';
 import CallSimulationModal from '@/components/CallSimulationModal';
 import Footer from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
-
-const initialCallLogs: CallLog[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    phone: "(555) 234-5678",
-    service: "Teeth Cleaning",
-    preferredTime: "Tomorrow 2-4 PM",
-    status: "scheduled",
-    created: "2 hours ago"
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    phone: "(555) 876-5432",
-    service: "Emergency Toothache",
-    preferredTime: "ASAP",
-    status: "contacted",
-    created: "3 hours ago"
-  },
-  {
-    id: 3,
-    name: "Emily Rodriguez",
-    phone: "(555) 345-6789",
-    service: "Dental Crown",
-    preferredTime: "Next Week Mon/Tue",
-    status: "pending",
-    created: "5 hours ago"
-  },
-  {
-    id: 4,
-    name: "James Wilson",
-    phone: "(555) 456-7890",
-    service: "Whitening Consultation",
-    preferredTime: "Friday Morning",
-    status: "scheduled",
-    created: "1 day ago"
-  },
-  {
-    id: 5,
-    name: "Lisa Anderson",
-    phone: "(555) 567-8901",
-    service: "Root Canal",
-    preferredTime: "This Week Afternoon",
-    status: "pending",
-    created: "1 day ago"
-  }
-];
+import type { CallLog } from '@shared/schema';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [callLogs, setCallLogs] = useState<CallLog[]>(initialCallLogs);
-  const [nextId, setNextId] = useState(6);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const handleLogCall = (callData: {
-    name: string;
-    phone: string;
-    service: string;
-    preferredTime: string;
-  }) => {
-    const newLog: CallLog = {
-      id: nextId,
-      ...callData,
-      status: 'new',
-      created: 'Just now'
-    };
-    
-    setCallLogs([newLog, ...callLogs]);
-    setNextId(nextId + 1);
-    
+  const fetchCallLogs = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch('/api/calls/all');
+      if (response.ok) {
+        const data = await response.json();
+        setCallLogs(data.rows);
+      }
+    } catch (error) {
+      console.error('Error fetching calls:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCallLogs();
+  }, []);
+
+  const handleLogCall = async () => {
+    await fetchCallLogs();
     toast({
       title: "Sent to clinic (demo)",
-      description: `Call from ${callData.name} has been logged.`,
+      description: "Call has been logged successfully.",
       duration: 3000,
     });
   };
 
-  const handleRefresh = () => {
-    console.log('Dashboard refreshed');
+  const handleRefresh = async () => {
+    await fetchCallLogs();
     toast({
       title: "Dashboard refreshed",
       description: "Showing latest call logs",
@@ -97,7 +55,7 @@ export default function Home() {
     <div className="min-h-screen">
       <Hero onSimulateCall={() => setIsModalOpen(true)} />
       <HowItWorks />
-      <DashboardPreview callLogs={callLogs} onRefresh={handleRefresh} />
+      <DashboardPreview callLogs={callLogs} onRefresh={handleRefresh} isRefreshing={isRefreshing} />
       <ConnectClinic />
       <Footer />
       <CallSimulationModal 
