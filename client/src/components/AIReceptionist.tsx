@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Send, Bot, User, AlertCircle, Database } from 'lucide-react';
@@ -106,49 +106,64 @@ export default function AIReceptionist() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <Card className="rounded-2xl h-[600px] flex flex-col">
-              <CardHeader className="border-b">
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-primary" />
-                  Chat with AI
+            <Card className="rounded-2xl shadow-lg border-0 bg-card overflow-hidden h-[600px] flex flex-col">
+              <CardHeader className="border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-primary" />
+                  </div>
+                  AI Receptionist
+                  <span className="ml-auto text-xs font-normal text-muted-foreground">
+                    Online
+                  </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-0">
+              
+              <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
                 <div
                   data-testid="chat-messages-container"
-                  className="flex-1 overflow-y-auto p-6 space-y-4"
+                  className="flex-1 overflow-y-auto px-6 py-6 space-y-3"
+                  style={{ 
+                    scrollBehavior: 'smooth',
+                    fontFamily: 'system-ui, -apple-system, sans-serif'
+                  }}
                 >
                   {messages.length === 0 && (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">
-                        <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Start a conversation with your AI receptionist</p>
-                        <p className="text-sm mt-2">Try asking about clinic hours or services</p>
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Bot className="w-10 h-10 text-primary" />
+                        </div>
+                        <p className="text-base font-medium mb-1">Start a conversation</p>
+                        <p className="text-sm opacity-70">Try asking about clinic hours or services</p>
                       </div>
                     </div>
                   )}
                   
-                  {messages.map((msg) => (
+                  {messages.map((msg, index) => (
                     <div
                       key={msg.id}
                       data-testid={`message-${msg.role}-${msg.id}`}
-                      className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                      style={{ animationDelay: `${index * 50}ms` }}
                     >
                       {msg.role === 'assistant' && (
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <Bot className="w-5 h-5 text-primary" />
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Bot className="w-4 h-4 text-primary" />
                         </div>
                       )}
                       
                       <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                        className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                           msg.role === 'user'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
+                            ? 'bg-card text-card-foreground border border-border shadow-md'
+                            : 'bg-accent text-accent-foreground shadow-sm'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                        <span className="text-xs opacity-70 mt-1 block">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                          {msg.content}
+                        </p>
+                        <span className="text-[10px] mt-1.5 block opacity-70">
                           {new Date(msg.timestamp).toLocaleTimeString([], { 
                             hour: '2-digit', 
                             minute: '2-digit' 
@@ -157,23 +172,26 @@ export default function AIReceptionist() {
                       </div>
                       
                       {msg.role === 'user' && (
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                          <User className="w-5 h-5 text-primary-foreground" />
+                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                          <User className="w-4 h-4 text-primary-foreground" />
                         </div>
                       )}
                     </div>
                   ))}
                   
                   {isTyping && (
-                    <div className="flex gap-3 justify-start" data-testid="typing-indicator">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-5 h-5 text-primary" />
+                    <div 
+                      className="flex gap-2 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300" 
+                      data-testid="typing-indicator"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                        <Bot className="w-4 h-4 text-primary" />
                       </div>
-                      <div className="bg-muted rounded-2xl px-4 py-3">
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <div className="bg-accent rounded-2xl px-4 py-3 shadow-sm">
+                        <div className="flex gap-1 items-center">
+                          <div className="w-2 h-2 bg-accent-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
+                          <div className="w-2 h-2 bg-accent-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
+                          <div className="w-2 h-2 bg-accent-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
                         </div>
                       </div>
                     </div>
@@ -182,8 +200,16 @@ export default function AIReceptionist() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="border-t p-4">
-                  <div className="flex gap-2">
+                <div 
+                  className="border-t bg-background/95 backdrop-blur-sm p-4 shadow-lg" 
+                  style={{ 
+                    boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.05)',
+                    position: 'sticky',
+                    bottom: 0,
+                    zIndex: 10
+                  }}
+                >
+                  <div className="flex gap-2 items-end">
                     <Input
                       data-testid="input-chat-message"
                       placeholder="Type your question..."
@@ -191,24 +217,31 @@ export default function AIReceptionist() {
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
                       disabled={sendMutation.isPending}
-                      className="rounded-xl"
+                      className="rounded-xl border-2 focus:border-primary transition-colors bg-background text-base px-4 py-2.5"
+                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                     />
                     <Button
                       data-testid="button-send-message"
                       onClick={handleSend}
                       disabled={!inputMessage.trim() || sendMutation.isPending}
-                      className="bg-primary"
+                      size="icon"
+                      className="bg-primary h-10 w-10 rounded-xl flex-shrink-0"
                     >
                       <Send className="w-4 h-4" />
                     </Button>
                   </div>
+                  {isTyping && (
+                    <p className="text-xs text-muted-foreground mt-2 ml-1">
+                      AI Receptionist is typing...
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <div className="space-y-4">
-            <Card className="rounded-2xl">
+            <Card className="rounded-2xl shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Database className="w-5 h-5" />
@@ -231,7 +264,7 @@ export default function AIReceptionist() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl">
+            <Card className="rounded-2xl shadow-md">
               <CardHeader>
                 <CardTitle className="text-base">Conversation Limit</CardTitle>
               </CardHeader>
@@ -241,7 +274,7 @@ export default function AIReceptionist() {
                 </p>
                 <div className="mt-3 w-full bg-muted rounded-full h-2">
                   <div 
-                    className="bg-primary h-2 rounded-full transition-all"
+                    className="bg-primary h-2 rounded-full transition-all duration-500"
                     style={{ width: `${(messages.length / 10) * 100}%` }}
                   />
                 </div>
