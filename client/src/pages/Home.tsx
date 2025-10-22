@@ -4,6 +4,7 @@ import HowItWorks from '@/components/HowItWorks';
 import DashboardPreview from '@/components/DashboardPreview';
 import Appointments from '@/components/Appointments';
 import TrainYourAI from '@/components/TrainYourAI';
+import AIReceptionist from '@/components/AIReceptionist';
 import ConnectClinic from '@/components/ConnectClinic';
 import CallSimulationModal from '@/components/CallSimulationModal';
 import Footer from '@/components/Footer';
@@ -60,6 +61,7 @@ export default function Home() {
       <DashboardPreview callLogs={callLogs} onRefresh={handleRefresh} isRefreshing={isRefreshing} />
       <Appointments />
       <TrainYourAI />
+      <AIReceptionist />
       <ConnectClinic />
       <Footer />
       <CallSimulationModal 

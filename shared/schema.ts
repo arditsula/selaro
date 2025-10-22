@@ -62,3 +62,17 @@ export const knowledgeSchema = z.object({
 });
 
 export type Knowledge = z.infer<typeof knowledgeSchema>;
+
+export const chatMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  timestamp: z.string(),
+});
+
+export const assistantRequestSchema = z.object({
+  message: z.string().min(1, "Message cannot be empty"),
+});
+
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type AssistantRequest = z.infer<typeof assistantRequestSchema>;

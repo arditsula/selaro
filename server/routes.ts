@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCallLogSchema, insertAppointmentSchema, updateAppointmentSchema, knowledgeSchema } from "@shared/schema";
+import { insertCallLogSchema, insertAppointmentSchema, updateAppointmentSchema, knowledgeSchema, assistantRequestSchema } from "@shared/schema";
 import * as fs from "fs";
 import * as path from "path";
+import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calls/log", async (req, res) => {
@@ -160,6 +161,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ 
           ok: false, 
           error: fsError instanceof Error ? fsError.message : "Failed to save knowledge" 
+        });
+      }
+    } catch (validationError) {
+      res.status(400).json({ 
+        ok: false, 
+        error: validationError instanceof Error ? validationError.message : "Validation failed" 
+      });
+    }
+  });
+
+  // This is using OpenAI's API with your own API key
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  app.post("/api/assistant", async (req, res) => {
+    try {
+      const validatedData = assistantRequestSchema.parse(req.body);
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(503).json({
+          ok: false,
+          error: "OpenAI API key not configured"
+        });
+      }
+
+      let clinicKnowledge = "";
+      if (fs.existsSync(knowledgeFilePath)) {
+        try {
+          const data = fs.readFileSync(knowledgeFilePath, "utf-8");
+          const knowledge = JSON.parse(data);
+          clinicKnowledge = knowledge.content || "";
+        } catch (error) {
+          console.error("Failed to read knowledge file:", error);
+        }
+      }
+
+      const systemPrompt = "You are a friendly AI receptionist for a dental clinic. Use the knowledge provided by the clinic to answer accurately, warmly, and briefly.";
+      
+      const userMessage = clinicKnowledge 
+        ? `Clinic Info: ${clinicKnowledge}\n\nPatient question: ${validatedData.message}`
+        : validatedData.message;
+
+      try {
+        // the newest OpenAI model is "gpt-4o-mini" (using gpt-4o-mini as specified by user)
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage }
+          ],
+          temperature: 0.7,
+          max_tokens: 300,
+        });
+
+        const reply = completion.choices[0].message.content || "I apologize, but I couldn't generate a response. Please try again.";
+        res.json({ ok: true, reply });
+      } catch (openaiError) {
+        console.error("OpenAI API error:", openaiError);
+        res.status(500).json({
+          ok: false,
+          error: "Failed to generate AI response. Please try again."
         });
       }
     } catch (validationError) {
