@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Hero from '@/components/Hero';
 import HowItWorks from '@/components/HowItWorks';
 import DashboardPreview from '@/components/DashboardPreview';
+import Appointments from '@/components/Appointments';
 import ConnectClinic from '@/components/ConnectClinic';
 import CallSimulationModal from '@/components/CallSimulationModal';
 import Footer from '@/components/Footer';
@@ -56,6 +57,7 @@ export default function Home() {
       <Hero onSimulateCall={() => setIsModalOpen(true)} />
       <HowItWorks />
       <DashboardPreview callLogs={callLogs} onRefresh={handleRefresh} isRefreshing={isRefreshing} />
+      <Appointments />
       <ConnectClinic />
       <Footer />
       <CallSimulationModal 

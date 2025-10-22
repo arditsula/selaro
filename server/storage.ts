@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type CallLog, type InsertCallLog } from "@shared/schema";
+import { type User, type InsertUser, type CallLog, type InsertCallLog, type Appointment, type InsertAppointment, type UpdateAppointment } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -7,15 +7,22 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   createCallLog(callLog: InsertCallLog): Promise<CallLog>;
   getAllCallLogs(): Promise<CallLog[]>;
+  createAppointment(appointment: InsertAppointment): Promise<Appointment>;
+  getAllAppointments(): Promise<Appointment[]>;
+  getAppointment(id: string): Promise<Appointment | undefined>;
+  updateAppointment(id: string, update: UpdateAppointment): Promise<Appointment | undefined>;
+  deleteAppointment(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private callLogs: CallLog[];
+  private appointments: Appointment[];
 
   constructor() {
     this.users = new Map();
     this.callLogs = [];
+    this.appointments = [];
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -48,6 +55,48 @@ export class MemStorage implements IStorage {
 
   async getAllCallLogs(): Promise<CallLog[]> {
     return this.callLogs;
+  }
+
+  async createAppointment(insertAppointment: InsertAppointment): Promise<Appointment> {
+    const appointment: Appointment = {
+      id: randomUUID(),
+      ...insertAppointment,
+      status: "Pending",
+      createdAt: new Date().toISOString(),
+    };
+    this.appointments.push(appointment);
+    return appointment;
+  }
+
+  async getAllAppointments(): Promise<Appointment[]> {
+    return this.appointments.sort((a, b) => {
+      const dateA = new Date(`${a.date} ${a.time}`).getTime();
+      const dateB = new Date(`${b.date} ${b.time}`).getTime();
+      return dateB - dateA;
+    });
+  }
+
+  async getAppointment(id: string): Promise<Appointment | undefined> {
+    return this.appointments.find(apt => apt.id === id);
+  }
+
+  async updateAppointment(id: string, update: UpdateAppointment): Promise<Appointment | undefined> {
+    const index = this.appointments.findIndex(apt => apt.id === id);
+    if (index === -1) return undefined;
+    
+    this.appointments[index] = {
+      ...this.appointments[index],
+      ...update,
+    };
+    return this.appointments[index];
+  }
+
+  async deleteAppointment(id: string): Promise<boolean> {
+    const index = this.appointments.findIndex(apt => apt.id === id);
+    if (index === -1) return false;
+    
+    this.appointments.splice(index, 1);
+    return true;
   }
 }
 

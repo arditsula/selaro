@@ -31,3 +31,28 @@ export const insertCallLogSchema = callLogSchema.omit({ id: true, status: true, 
 
 export type CallLog = z.infer<typeof callLogSchema>;
 export type InsertCallLog = z.infer<typeof insertCallLogSchema>;
+
+export const appointmentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  phone: z.string(),
+  service: z.string(),
+  date: z.string(),
+  time: z.string(),
+  notes: z.string().optional(),
+  status: z.enum(["Pending", "Confirmed", "Cancelled"]),
+  createdAt: z.string(),
+});
+
+export const insertAppointmentSchema = appointmentSchema.omit({ id: true, status: true, createdAt: true });
+
+export const updateAppointmentSchema = z.object({
+  status: z.enum(["Pending", "Confirmed", "Cancelled"]).optional(),
+  notes: z.string().optional(),
+  date: z.string().optional(),
+  time: z.string().optional(),
+});
+
+export type Appointment = z.infer<typeof appointmentSchema>;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type UpdateAppointment = z.infer<typeof updateAppointmentSchema>;

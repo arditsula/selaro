@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCallLogSchema } from "@shared/schema";
+import { insertCallLogSchema, insertAppointmentSchema, updateAppointmentSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calls/log", async (req, res) => {
@@ -64,6 +64,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
+  });
+
+  app.get("/api/appointments", async (_req, res) => {
+    try {
+      const appointments = await storage.getAllAppointments();
+      res.json({ ok: true, appointments });
+    } catch (error) {
+      res.status(500).json({ 
+        ok: false, 
+        error: error instanceof Error ? error.message : "Failed to fetch appointments" 
+      });
+    }
+  });
+
+  app.post("/api/appointments", async (req, res) => {
+    try {
+      const validatedData = insertAppointmentSchema.parse(req.body);
+      const appointment = await storage.createAppointment(validatedData);
+      res.json({ ok: true, appointment });
+    } catch (error) {
+      res.status(400).json({ 
+        ok: false, 
+        error: error instanceof Error ? error.message : "Validation failed" 
+      });
+    }
+  });
+
+  app.patch("/api/appointments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateAppointmentSchema.parse(req.body);
+      const appointment = await storage.updateAppointment(id, validatedData);
+      
+      if (!appointment) {
+        return res.status(404).json({ ok: false, error: "Appointment not found" });
+      }
+      
+      res.json({ ok: true, appointment });
+    } catch (error) {
+      res.status(400).json({ 
+        ok: false, 
+        error: error instanceof Error ? error.message : "Validation failed" 
+      });
+    }
+  });
+
+  app.delete("/api/appointments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteAppointment(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ ok: false, error: "Appointment not found" });
+      }
+      
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ 
+        ok: false, 
+        error: error instanceof Error ? error.message : "Failed to delete appointment" 
+      });
+    }
   });
 
   const httpServer = createServer(app);

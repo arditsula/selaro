@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Bot } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { User, Bot, Calendar } from "lucide-react";
 
 interface CallSimulationModalProps {
   open: boolean;
@@ -25,29 +26,62 @@ const transcript = [
 ];
 
 export default function CallSimulationModal({ open, onOpenChange, onLogCall }: CallSimulationModalProps) {
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     name: "Anna Müller",
     phone: "0176 1234567",
     service: "Zahnreinigung",
     preferredTime: "Morgen 10:00"
   });
+  const [createAppointment, setCreateAppointment] = useState(false);
+  const [appointmentData, setAppointmentData] = useState({
+    date: getTomorrowDate(),
+    time: "10:00"
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEndDemo = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/calls/log', {
+      const callResponse = await fetch('/api/calls/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        onLogCall();
-        onOpenChange(false);
-      } else {
+      if (!callResponse.ok) {
         console.error('Failed to log call');
+        return;
       }
+
+      if (createAppointment) {
+        const appointmentPayload = {
+          name: formData.name,
+          phone: formData.phone,
+          service: formData.service,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          notes: "Created from call simulation demo"
+        };
+
+        const aptResponse = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(appointmentPayload),
+        });
+
+        if (!aptResponse.ok) {
+          console.error('Failed to create appointment');
+        }
+      }
+
+      onLogCall();
+      onOpenChange(false);
     } catch (error) {
       console.error('Error logging call:', error);
     } finally {
@@ -152,6 +186,54 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
                 data-testid="input-preferred-time"
               />
             </div>
+          </div>
+
+          <div className="bg-[#F3F4F6] p-4 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#00C896]" />
+                <Label htmlFor="createAppointment" className="text-sm font-medium text-[#111827] cursor-pointer">
+                  Create appointment (demo)
+                </Label>
+              </div>
+              <Switch 
+                id="createAppointment"
+                checked={createAppointment}
+                onCheckedChange={setCreateAppointment}
+                data-testid="switch-create-appointment"
+              />
+            </div>
+            
+            {createAppointment && (
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div>
+                  <Label htmlFor="appointmentDate" className="text-sm font-medium text-[#6B7280] mb-2 block">
+                    Appointment Date
+                  </Label>
+                  <Input 
+                    id="appointmentDate"
+                    type="date"
+                    value={appointmentData.date}
+                    onChange={(e) => setAppointmentData({ ...appointmentData, date: e.target.value })}
+                    className="border-[#E5E7EB]"
+                    data-testid="input-appointment-date"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="appointmentTime" className="text-sm font-medium text-[#6B7280] mb-2 block">
+                    Appointment Time
+                  </Label>
+                  <Input 
+                    id="appointmentTime"
+                    type="time"
+                    value={appointmentData.time}
+                    onChange={(e) => setAppointmentData({ ...appointmentData, time: e.target.value })}
+                    className="border-[#E5E7EB]"
+                    data-testid="input-appointment-time"
+                  />
+                </div>
+              </div>
+            )}
           </div>
           
           <Button 
