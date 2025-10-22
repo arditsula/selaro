@@ -1,7 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCallLogSchema, insertAppointmentSchema, updateAppointmentSchema } from "@shared/schema";
+import { insertCallLogSchema, insertAppointmentSchema, updateAppointmentSchema, knowledgeSchema } from "@shared/schema";
+import * as fs from "fs";
+import * as path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calls/log", async (req, res) => {
@@ -124,6 +126,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         ok: false, 
         error: error instanceof Error ? error.message : "Failed to delete appointment" 
+      });
+    }
+  });
+
+  const knowledgeFilePath = path.join(process.cwd(), "knowledge.json");
+
+  app.get("/api/knowledge", async (_req, res) => {
+    try {
+      if (fs.existsSync(knowledgeFilePath)) {
+        const data = fs.readFileSync(knowledgeFilePath, "utf-8");
+        const knowledge = JSON.parse(data);
+        res.json({ ok: true, content: knowledge.content || "" });
+      } else {
+        res.json({ ok: true, content: "" });
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        ok: false, 
+        error: error instanceof Error ? error.message : "Failed to fetch knowledge" 
+      });
+    }
+  });
+
+  app.post("/api/knowledge", async (req, res) => {
+    try {
+      const validatedData = knowledgeSchema.parse(req.body);
+      
+      try {
+        fs.writeFileSync(knowledgeFilePath, JSON.stringify(validatedData, null, 2), "utf-8");
+        res.json({ ok: true });
+      } catch (fsError) {
+        res.status(500).json({ 
+          ok: false, 
+          error: fsError instanceof Error ? fsError.message : "Failed to save knowledge" 
+        });
+      }
+    } catch (validationError) {
+      res.status(400).json({ 
+        ok: false, 
+        error: validationError instanceof Error ? validationError.message : "Validation failed" 
       });
     }
   });

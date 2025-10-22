@@ -56,3 +56,9 @@ export const updateAppointmentSchema = z.object({
 export type Appointment = z.infer<typeof appointmentSchema>;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type UpdateAppointment = z.infer<typeof updateAppointmentSchema>;
+
+export const knowledgeSchema = z.object({
+  content: z.string(),
+});
+
+export type Knowledge = z.infer<typeof knowledgeSchema>;
