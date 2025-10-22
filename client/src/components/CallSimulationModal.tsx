@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { User, Bot, Calendar } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 
 interface CallSimulationModalProps {
   open: boolean;
@@ -77,6 +78,8 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
 
         if (!aptResponse.ok) {
           console.error('Failed to create appointment');
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
         }
       }
 
