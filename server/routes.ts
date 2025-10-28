@@ -174,6 +174,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // This is using OpenAI's API with your own API key
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+  function detectBookingIntent(message: string): boolean {
+    const lowerMessage = message.toLowerCase();
+    const bookingKeywords = ["termin", "vereinbaren", "buchen", "möchte", "kommen", "um", "uhr"];
+    return bookingKeywords.some(keyword => lowerMessage.includes(keyword));
+  }
+
+  function formatDateToYYYYMMDD(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function extractDate(message: string): string | null {
+    const lowerMessage = message.toLowerCase();
+    const today = new Date();
+    
+    if (lowerMessage.includes("heute")) {
+      return formatDateToYYYYMMDD(today);
+    }
+    
+    if (lowerMessage.includes("morgen")) {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return formatDateToYYYYMMDD(tomorrow);
+    }
+    
+    const weekdayMap: Record<string, number> = {
+      "montag": 1,
+      "dienstag": 2,
+      "mittwoch": 3,
+      "donnerstag": 4,
+      "freitag": 5,
+      "samstag": 6,
+      "sonntag": 0
+    };
+    
+    for (const [dayName, targetDay] of Object.entries(weekdayMap)) {
+      if (lowerMessage.includes(dayName)) {
+        const currentDay = today.getDay();
+        let daysToAdd = targetDay - currentDay;
+        if (daysToAdd <= 0) {
+          daysToAdd += 7;
+        }
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + daysToAdd);
+        return formatDateToYYYYMMDD(targetDate);
+      }
+    }
+    
+    return null;
+  }
+
+  function extractTime(message: string): string | null {
+    const timePatternWithColon = /(\d{1,2})[.:](\d{2})/;
+    const timePatternWithUhr = /(\d{1,2})\s*uhr/i;
+    
+    let match = message.match(timePatternWithColon);
+    if (match) {
+      const hours = match[1].padStart(2, '0');
+      const minutes = match[2];
+      return `${hours}:${minutes}`;
+    }
+    
+    match = message.match(timePatternWithUhr);
+    if (match) {
+      const hours = match[1].padStart(2, '0');
+      return `${hours}:00`;
+    }
+    
+    return null;
+  }
+
   app.post("/api/assistant", async (req, res) => {
     try {
       const validatedData = assistantRequestSchema.parse(req.body);
@@ -183,6 +256,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ok: false,
           error: "OpenAI API key not configured"
         });
+      }
+
+      const hasBookingIntent = detectBookingIntent(validatedData.message);
+      
+      if (hasBookingIntent) {
+        const extractedDate = extractDate(validatedData.message);
+        const extractedTime = extractTime(validatedData.message);
+        
+        if (extractedDate && extractedTime) {
+          try {
+            const appointmentData = {
+              name: "Unbekannt",
+              phone: "",
+              service: "Allgemeine Behandlung",
+              date: extractedDate,
+              time: extractedTime,
+              notes: "Created automatically via chat",
+              status: "Pending"
+            };
+            
+            await storage.createAppointment(appointmentData);
+            
+            const [year, month, day] = extractedDate.split('-');
+            const formattedDate = `${day}.${month}.${year}`;
+            
+            const reply = `Super! Ich habe einen vorläufigen Termin für ${formattedDate} um ${extractedTime} eingetragen. Unser Team wird ihn in Kürze bestätigen. 😊`;
+            return res.json({ ok: true, reply });
+          } catch (appointmentError) {
+            console.error("Failed to create appointment:", appointmentError);
+            const reply = "Entschuldigung, ich konnte den Termin nicht erstellen. Bitte versuchen Sie es später erneut.";
+            return res.json({ ok: true, reply });
+          }
+        } else {
+          const reply = "Verstanden! Für welche Uhrzeit und welches Datum soll ich den Termin eintragen?";
+          return res.json({ ok: true, reply });
+        }
       }
 
       let clinicKnowledge = "";
@@ -203,7 +312,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : validatedData.message;
 
       try {
-        // the newest OpenAI model is "gpt-4o-mini" (using gpt-4o-mini as specified by user)
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
