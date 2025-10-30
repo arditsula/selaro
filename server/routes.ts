@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(twiml);
       }
       
-      const assistantResponse = await fetch("http://localhost:3000/api/assistant", {
+      const assistantResponse = await fetch("http://localhost:5000/api/assistant", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
