@@ -73,22 +73,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasBookingConfirmation = reply.includes("vorläufigen Termin") || reply.includes("Termin") && reply.includes("eingetragen");
       
       if (hasBookingConfirmation) {
-        const callData = {
-          name: "Unknown",
-          phone: From || "Unknown",
-          service: "Voice appointment",
-          preferredTime: "Confirmed via call"
-        };
-        await storage.createCallLog(callData);
-        
-        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+        const lastAptId = getLastAppointmentId(CallSid);
+        if (lastAptId) {
+          const apt = await storage.getAppointment(lastAptId);
+          if (apt && apt.name && apt.phone) {
+            const callData = {
+              name: "Unknown",
+              phone: From || "Unknown",
+              service: "Voice appointment",
+              preferredTime: "Confirmed via call"
+            };
+            await storage.createCallLog(callData);
+            
+            const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
   <Say language="de-DE" voice="Polly.Marlene">Vielen Dank für Ihren Anruf. Auf Wiederhören!</Say>
   <Hangup/>
 </Response>`;
-        res.set('Content-Type', 'text/xml');
-        return res.send(twiml);
+            res.set('Content-Type', 'text/xml');
+            return res.send(twiml);
+          }
+        }
       }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
