@@ -70,36 +70,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assistantData = await assistantResponse.json();
       const reply = assistantData.reply || "Entschuldigung, ich habe das nicht verstanden.";
       
+      const sid = req.body.CallSid || req.body.CallSid?.toString?.() || "anon";
+      const lastId = getLastAppointmentId(sid);
+      let haveName = false, havePhone = false;
+      
+      if (lastId) {
+        try {
+          const appt = await storage.getAppointment(lastId);
+          haveName = !!(appt?.name && appt.name.trim() && appt.name !== "Unbekannt");
+          havePhone = !!(appt?.phone && appt.phone.trim());
+        } catch {}
+      }
+      
       const hasBookingConfirmation = reply.includes("vorläufigen Termin") || reply.includes("Termin") && reply.includes("eingetragen");
       
-      if (hasBookingConfirmation) {
-        const lastAptId = getLastAppointmentId(CallSid);
-        if (lastAptId) {
-          const apt = await storage.getAppointment(lastAptId);
-          if (apt && apt.name && apt.phone) {
-            const callData = {
-              name: "Unknown",
-              phone: From || "Unknown",
-              service: "Voice appointment",
-              preferredTime: "Confirmed via call"
-            };
-            await storage.createCallLog(callData);
-            
-            const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+      if (hasBookingConfirmation && haveName && havePhone) {
+        const callData = {
+          name: "Unknown",
+          phone: From || "Unknown",
+          service: "Voice appointment",
+          preferredTime: "Confirmed via call"
+        };
+        await storage.createCallLog(callData);
+        
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
   <Say language="de-DE" voice="Polly.Marlene">Vielen Dank für Ihren Anruf. Auf Wiederhören!</Say>
   <Hangup/>
 </Response>`;
-            res.set('Content-Type', 'text/xml');
-            return res.send(twiml);
-          }
+        res.set('Content-Type', 'text/xml');
+        return res.send(twiml);
+      }
+      
+      let promptText = reply;
+      if (hasBookingConfirmation) {
+        if (!haveName && !havePhone) {
+          promptText += " Wie heißen Sie und wie lautet Ihre Telefonnummer?";
+        } else if (!haveName) {
+          promptText += " Wie heißen Sie bitte?";
+        } else if (!havePhone) {
+          promptText += " Wie lautet Ihre Telefonnummer?";
         }
       }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
+  <Say language="de-DE" voice="Polly.Marlene">${promptText}</Say>
   <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
 </Response>`;
       res.set('Content-Type', 'text/xml');
