@@ -58,11 +58,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(twiml);
       }
       
-      const assistantResponse = await fetch("http://localhost:5000/api/assistant", {
+      const assistantResponse = await fetch("http://localhost:3000/api/assistant", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-client-id": CallSid
+          // critical: keep session stable per call
+          "x-client-id": req.body.CallSid || req.headers["x-twilio-callsid"] || "anon"
         },
         body: JSON.stringify({ message: SpeechResult })
       });
