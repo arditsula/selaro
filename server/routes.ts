@@ -6,6 +6,16 @@ import * as fs from "fs";
 import * as path from "path";
 import OpenAI from "openai";
 
+const sessionAppointments = new Map<string, string>();
+
+function setLastAppointmentId(clientId: string, appointmentId: string): void {
+  sessionAppointments.set(clientId, appointmentId);
+}
+
+function getLastAppointmentId(clientId: string): string | undefined {
+  return sessionAppointments.get(clientId);
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calls/log", async (req, res) => {
     try {
@@ -247,6 +257,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return null;
   }
 
+  function extractName(message: string): string | null {
+    const lowerMessage = message.toLowerCase();
+    
+    const namePatterns = [
+      /(?:ich\s+hei(?:ß|ss)e|mein\s+name\s+ist)\s+([a-zäöüß]+(?:\s+[a-zäöüß]+)*)/i,
+      /^([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)+)$/
+    ];
+    
+    for (const pattern of namePatterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    
+    return null;
+  }
+
+  function extractPhone(message: string): string | null {
+    const phonePatterns = [
+      /(?:meine\s+(?:nummer|telefonnummer)\s+(?:ist|lautet))\s*([\d\s\-\/+()]+)/i,
+      /\b((?:\+49|0)\s*\d{2,4}[\s\-\/]?\d{3,}[\s\-\/]?\d{3,})\b/
+    ];
+    
+    for (const pattern of phonePatterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    
+    return null;
+  }
+
   app.post("/api/assistant", async (req, res) => {
     try {
       const validatedData = assistantRequestSchema.parse(req.body);
@@ -258,6 +302,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const clientId = req.headers['x-client-id'] as string || 'default';
+      const extractedName = extractName(validatedData.message);
+      const extractedPhone = extractPhone(validatedData.message);
+      
+      if (extractedName || extractedPhone) {
+        const lastAppointmentId = getLastAppointmentId(clientId);
+        
+        if (lastAppointmentId) {
+          const updateData: any = {};
+          if (extractedName) updateData.name = extractedName;
+          if (extractedPhone) updateData.phone = extractedPhone;
+          
+          const updated = await storage.updateAppointment(lastAppointmentId, updateData);
+          
+          if (updated) {
+            const reply = `Perfekt! Ich habe Ihre Daten zum Termin hinzugefügt. Wir freuen uns auf Sie! 😊`;
+            return res.json({ ok: true, reply });
+          }
+        }
+      }
+      
       const hasBookingIntent = detectBookingIntent(validatedData.message);
       
       if (hasBookingIntent) {
@@ -276,7 +341,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "Pending"
             };
             
-            await storage.createAppointment(appointmentData);
+            const appointment = await storage.createAppointment(appointmentData);
+            
+            const clientId = req.headers['x-client-id'] as string || 'default';
+            setLastAppointmentId(clientId, appointment.id);
             
             const [year, month, day] = extractedDate.split('-');
             const formattedDate = `${day}.${month}.${year}`;

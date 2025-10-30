@@ -8,12 +8,22 @@ import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Send, Bot, User, AlertCircle, Database } from 'lucide-react';
 import type { ChatMessage } from '@shared/schema';
 
+function getOrCreateClientId(): string {
+  let clientId = localStorage.getItem('ai-chat-client-id');
+  if (!clientId) {
+    clientId = `client-${Math.random().toString(36).substring(2, 15)}`;
+    localStorage.setItem('ai-chat-client-id', clientId);
+  }
+  return clientId;
+}
+
 export default function AIReceptionist() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const clientIdRef = useRef(getOrCreateClientId());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,7 +35,12 @@ export default function AIReceptionist() {
 
   const sendMutation = useMutation({
     mutationFn: async (message: string) => {
-      const response = await apiRequest('POST', '/api/assistant', { message });
+      const response = await apiRequest(
+        'POST', 
+        '/api/assistant', 
+        { message },
+        { 'x-client-id': clientIdRef.current }
+      );
       return response.json();
     },
     onSuccess: (data) => {
