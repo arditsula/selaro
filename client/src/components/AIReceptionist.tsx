@@ -9,12 +9,12 @@ import { MessageCircle, Send, Bot, User, AlertCircle, Database } from 'lucide-re
 import type { ChatMessage } from '@shared/schema';
 
 function getOrCreateClientId(): string {
-  let clientId = localStorage.getItem('ai-chat-client-id');
-  if (!clientId) {
-    clientId = `client-${Math.random().toString(36).substring(2, 15)}`;
-    localStorage.setItem('ai-chat-client-id', clientId);
+  let cid = localStorage.getItem("clientId");
+  if (!cid) {
+    cid = (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+    localStorage.setItem("clientId", cid);
   }
-  return clientId;
+  return cid;
 }
 
 export default function AIReceptionist() {
