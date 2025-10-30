@@ -46,22 +46,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/twilio/voice", async (req, res) => {
     try {
-      const { From, To, CallSid, SpeechResult } = req.body;
+      const { From, CallSid, SpeechResult } = req.body;
       
-      const callData = {
-        name: SpeechResult || "Unknown",
-        phone: From || "Unknown",
-        service: "Phone inquiry",
-        preferredTime: "Call back ASAP"
-      };
+      if (!SpeechResult) {
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Willkommen in unserer Zahnarztpraxis. Wie kann ich Ihnen helfen?</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
+</Response>`;
+        res.set('Content-Type', 'text/xml');
+        return res.send(twiml);
+      }
       
-      await storage.createCallLog(callData);
+      const assistantResponse = await fetch("http://localhost:5000/api/assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-client-id": CallSid
+        },
+        body: JSON.stringify({ message: SpeechResult })
+      });
+      
+      const assistantData = await assistantResponse.json();
+      const reply = assistantData.reply || "Entschuldigung, ich habe das nicht verstanden.";
+      
+      const hasBookingConfirmation = reply.includes("vorläufigen Termin") || reply.includes("Termin") && reply.includes("eingetragen");
+      
+      if (hasBookingConfirmation) {
+        const callData = {
+          name: "Unknown",
+          phone: From || "Unknown",
+          service: "Voice appointment",
+          preferredTime: "Confirmed via call"
+        };
+        await storage.createCallLog(callData);
+        
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
+  <Say language="de-DE" voice="Polly.Marlene">Vielen Dank für Ihren Anruf. Auf Wiederhören!</Say>
+  <Hangup/>
+</Response>`;
+        res.set('Content-Type', 'text/xml');
+        return res.send(twiml);
+      }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">Danke! Wir melden uns bald zurück.</Say>
+  <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
 </Response>`;
-      
       res.set('Content-Type', 'text/xml');
       res.send(twiml);
     } catch (error) {
