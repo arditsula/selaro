@@ -348,23 +348,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const clientId = req.headers['x-client-id'] as string || 'default';
-      const extractedName = extractName(validatedData.message);
-      const extractedPhone = extractPhone(validatedData.message);
+      const sid = (req.headers["x-client-id"] as string) || "anon";
       
-      if (extractedName || extractedPhone) {
-        const lastAppointmentId = getLastAppointmentId(clientId);
+      const nameMatch = validatedData.message.match(/(?:ich\s*hei(?:ße|sse)|mein\s+name\s+ist)\s+([a-zäöüß \-']{2,})/i);
+      const phoneMatch = validatedData.message.match(/(?:meine\s+nummer\s+ist|rückrufnummer(?:\s*ist)?)\s*([+0-9][0-9 ()\-]{6,})/i);
+      
+      if (nameMatch || phoneMatch) {
+        const lastId = getLastAppointmentId(sid);
         
-        if (lastAppointmentId) {
-          const updateData: any = {};
-          if (extractedName) updateData.name = extractedName;
-          if (extractedPhone) updateData.phone = extractedPhone;
+        if (lastId) {
+          if (nameMatch) {
+            const fullName = nameMatch[1].trim();
+            await storage.updateAppointment(lastId, { name: fullName });
+            return res.json({ ok: true, reply: "Danke! Ich habe Ihren Namen zum Termin hinzugefügt." });
+          }
           
-          const updated = await storage.updateAppointment(lastAppointmentId, updateData);
-          
-          if (updated) {
-            const reply = `Perfekt! Ich habe Ihre Daten zum Termin hinzugefügt. Wir freuen uns auf Sie! 😊`;
-            return res.json({ ok: true, reply });
+          if (phoneMatch) {
+            const raw = phoneMatch[1];
+            const digits = raw.replace(/[^\d+]/g, "");
+            await storage.updateAppointment(lastId, { phone: digits });
+            return res.json({ ok: true, reply: "Perfekt! Ich habe Ihre Rückrufnummer gespeichert." });
           }
         }
       }
@@ -388,9 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
             
             const appointment = await storage.createAppointment(appointmentData);
-            
-            const clientId = req.headers['x-client-id'] as string || 'default';
-            setLastAppointmentId(clientId, appointment.id);
+            setLastAppointmentId(sid, appointment.id);
             
             const [year, month, day] = extractedDate.split('-');
             const formattedDate = `${day}.${month}.${year}`;

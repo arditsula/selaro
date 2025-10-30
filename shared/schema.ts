@@ -47,6 +47,8 @@ export const appointmentSchema = z.object({
 export const insertAppointmentSchema = appointmentSchema.omit({ id: true, status: true, createdAt: true });
 
 export const updateAppointmentSchema = z.object({
+  name: z.string().optional(),
+  phone: z.string().optional(),
   status: z.enum(["Pending", "Confirmed", "Cancelled"]).optional(),
   notes: z.string().optional(),
   date: z.string().optional(),
