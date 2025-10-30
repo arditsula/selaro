@@ -71,29 +71,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assistantData = await assistantResponse.json();
       const reply = assistantData.reply || "Entschuldigung, ich habe das nicht verstanden.";
       
-      const sid = req.body.CallSid || req.body.CallSid?.toString?.() || "anon";
+      const sid = req.body.CallSid || "anon";
       const lastId = getLastAppointmentId(sid);
       let haveName = false, havePhone = false;
       
       if (lastId) {
         try {
           const appt = await storage.getAppointment(lastId);
-          haveName = !!(appt?.name && appt.name.trim() && appt.name !== "Unbekannt");
+          haveName = !!(appt?.name && appt.name.trim());
           havePhone = !!(appt?.phone && appt.phone.trim());
         } catch {}
       }
       
-      const hasBookingConfirmation = reply.includes("vorläufigen Termin") || reply.includes("Termin") && reply.includes("eingetragen");
-      
-      if (hasBookingConfirmation && haveName && havePhone) {
-        const callData = {
-          name: "Unknown",
-          phone: From || "Unknown",
-          service: "Voice appointment",
-          preferredTime: "Confirmed via call"
-        };
-        await storage.createCallLog(callData);
-        
+      if (haveName && havePhone) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
@@ -104,20 +94,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(twiml);
       }
       
-      let promptText = reply;
-      if (hasBookingConfirmation) {
-        if (!haveName && !havePhone) {
-          promptText += " Wie heißen Sie und wie lautet Ihre Telefonnummer?";
-        } else if (!haveName) {
-          promptText += " Wie heißen Sie bitte?";
-        } else if (!havePhone) {
-          promptText += " Wie lautet Ihre Telefonnummer?";
-        }
+      let promptNext = reply;
+      if (!haveName && havePhone) {
+        promptNext = reply + " Könnten Sie mir bitte noch Ihren vollständigen Namen sagen?";
+      }
+      if (haveName && !havePhone) {
+        promptNext = reply + " Könnten Sie mir bitte noch eine Rückrufnummer geben?";
       }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">${promptText}</Say>
+  <Say language="de-DE" voice="Polly.Marlene">${promptNext}</Say>
   <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
 </Response>`;
       res.set('Content-Type', 'text/xml');
@@ -126,10 +113,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Twilio webhook error:', error);
       const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">Es tut uns leid, ein Fehler ist aufgetreten.</Say>
+  <Say language="de-DE" voice="Polly.Marlene">Entschuldigung, bitte wiederholen Sie das.</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
 </Response>`;
       res.set('Content-Type', 'text/xml');
-      res.status(500).send(errorTwiml);
+      res.send(errorTwiml);
     }
   });
 
