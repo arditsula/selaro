@@ -16,6 +16,41 @@ function getLastAppointmentId(clientId: string): string | undefined {
   return sessionAppointments.get(clientId);
 }
 
+async function sendSms(to: string, body: string): Promise<void> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    return;
+  }
+
+  try {
+    const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          To: to,
+          From: fromNumber,
+          Body: body,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to send SMS:', await response.text());
+    }
+  } catch (error) {
+    console.error('SMS send error:', error);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calls/log", async (req, res) => {
     try {
@@ -91,6 +126,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (!needName && !needPhone && !needDT && !needService) {
+        if (lastId) {
+          try {
+            const appt = await storage.getAppointment(lastId);
+            if (appt?.phone && appt?.datetime) {
+              const dt = new Date(appt.datetime);
+              const formattedDate = `${dt.getDate().toString().padStart(2, '0')}.${(dt.getMonth() + 1).toString().padStart(2, '0')}.${dt.getFullYear()}`;
+              const formattedTime = `${dt.getHours().toString().padStart(2, '0')}:${dt.getMinutes().toString().padStart(2, '0')}`;
+              const smsBody = `Ihr Termin ist vorgemerkt für ${formattedDate} ${formattedTime}. Wir melden uns zur Bestätigung.`;
+              await sendSms(appt.phone, smsBody);
+            }
+          } catch (error) {
+            console.error('Error sending SMS:', error);
+          }
+        }
+        
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
