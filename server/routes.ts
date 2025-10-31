@@ -265,6 +265,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return null;
   }
 
+  function parseOfficeHours(knowledgeText: string): { startHour: number; endHour: number; workDays: number[] } {
+    const defaultHours = { startHour: 8, endHour: 19, workDays: [1, 2, 3, 4, 5] };
+    
+    const hoursMatch = knowledgeText.match(/(\d{1,2})\s*(?:am|:00)?\s*(?:to|bis|-|–)\s*(\d{1,2})\s*(?:pm|:00)?/i);
+    if (hoursMatch) {
+      let start = parseInt(hoursMatch[1], 10);
+      let end = parseInt(hoursMatch[2], 10);
+      
+      if (hoursMatch[0].toLowerCase().includes('pm') && end < 12) end += 12;
+      if (hoursMatch[0].toLowerCase().includes('am') && start === 12) start = 0;
+      
+      if (start >= 0 && start <= 23 && end >= 0 && end <= 23 && end > start) {
+        return { ...defaultHours, startHour: start, endHour: end };
+      }
+    }
+    
+    return defaultHours;
+  }
+
+  function isWithinOfficeHours(datetimeStr: string, knowledgeText: string): boolean {
+    const dt = new Date(datetimeStr);
+    const dayOfWeek = dt.getDay();
+    const hours = dt.getHours();
+    
+    const officeHours = parseOfficeHours(knowledgeText);
+    
+    if (!officeHours.workDays.includes(dayOfWeek)) {
+      return false;
+    }
+    
+    if (hours < officeHours.startHour || hours >= officeHours.endHour) {
+      return false;
+    }
+    
+    return true;
+  }
+
   function parseExplicitDateTime(message: string): { date: string | null; time: string | null; datetime: string | null } {
     const today = new Date();
     let parsedDate: string | null = null;
@@ -397,6 +434,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setLastAppointmentId(sid, appointmentId);
       }
       
+      let clinicKnowledge = "";
+      if (fs.existsSync(knowledgeFilePath)) {
+        try {
+          const data = fs.readFileSync(knowledgeFilePath, "utf-8");
+          const knowledge = JSON.parse(data);
+          clinicKnowledge = knowledge.content || "";
+        } catch (error) {
+          console.error("Failed to read knowledge file:", error);
+        }
+      }
+
       const nameMatch = validatedData.message.match(/(?:ich\s*hei(?:ße|sse)|mein\s+name\s+ist)\s+([a-zäöüß \-']{2,})/i);
       const phoneMatch = validatedData.message.match(/(?:meine\s+nummer\s+ist|rückrufnummer(?:\s*ist)?)\s*([+0-9][0-9 ()\-]{6,})/i);
       
@@ -422,6 +470,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateAppointment(appointmentId, { service: detectedService });
           reply = `Verstanden, ich habe "${detectedService}" notiert.`;
         } else if (datetimeStr) {
+          if (!isWithinOfficeHours(datetimeStr, clinicKnowledge)) {
+            reply = "Leider ist die Praxis dann geschlossen. Passt Ihnen ein Termin zwischen 08:00 und 19:00 Uhr (Mo–Fr)?";
+            return res.json({ ok: true, reply });
+          }
           await storage.updateAppointment(appointmentId, { datetime: datetimeStr });
           const dt = new Date(datetimeStr);
           const formattedDate = `${dt.getDate()}.${dt.getMonth() + 1}.${dt.getFullYear()}`;
@@ -446,17 +498,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         return res.json({ ok: true, reply });
-      }
-
-      let clinicKnowledge = "";
-      if (fs.existsSync(knowledgeFilePath)) {
-        try {
-          const data = fs.readFileSync(knowledgeFilePath, "utf-8");
-          const knowledge = JSON.parse(data);
-          clinicKnowledge = knowledge.content || "";
-        } catch (error) {
-          console.error("Failed to read knowledge file:", error);
-        }
       }
 
       const systemPrompt = "You are a friendly AI receptionist for a dental clinic. Use the knowledge provided by the clinic to answer accurately, warmly, and briefly in German.";
