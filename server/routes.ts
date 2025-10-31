@@ -70,11 +70,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assistantData = await assistantResponse.json();
       let reply = assistantData.reply || "Entschuldigung, ich habe das nicht verstanden.";
       
-      if (reply.includes("__COMPLETE__")) {
-        const cleanReply = reply.replace("__COMPLETE__", "").trim();
+      reply = reply.replace("__COMPLETE__", "").trim();
+      
+      const sid = req.body.CallSid || "anon";
+      const lastId = getLastAppointmentId(sid);
+      
+      let needName = true;
+      let needPhone = true;
+      let needDT = true;
+      
+      if (lastId) {
+        try {
+          const appt = await storage.getAppointment(lastId);
+          needName = !(appt?.name && appt.name.trim());
+          needPhone = !(appt?.phone && appt.phone.trim());
+          needDT = !(appt?.datetime && appt.datetime.trim());
+        } catch {}
+      }
+      
+      if (!needName && !needPhone && !needDT) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">${cleanReply}</Say>
+  <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
   <Say language="de-DE" voice="Polly.Marlene">Vielen Dank für Ihren Anruf. Auf Wiederhören!</Say>
   <Hangup/>
 </Response>`;
@@ -82,24 +99,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(twiml);
       }
       
-      const sid = req.body.CallSid || "anon";
-      const lastId = getLastAppointmentId(sid);
-      
-      if (lastId) {
-        try {
-          const appt = await storage.getAppointment(lastId);
-          const hasName = !!(appt?.name && appt.name.trim());
-          const hasPhone = !!(appt?.phone && appt.phone.trim());
-          const hasDatetime = !!(appt?.datetime && appt.datetime.trim());
-          
-          if (!hasName) {
-            reply += " Könnten Sie mir bitte noch Ihren vollständigen Namen sagen?";
-          } else if (!hasPhone) {
-            reply += " Könnten Sie mir bitte noch eine Rückrufnummer geben?";
-          } else if (!hasDatetime) {
-            reply += " Für welches Datum und welche Uhrzeit wünschen Sie den Termin?";
-          }
-        } catch {}
+      if (needName) {
+        reply += " Könnten Sie mir bitte noch Ihren vollständigen Namen sagen?";
+      } else if (needPhone) {
+        reply += " Könnten Sie mir bitte noch eine Rückrufnummer geben?";
+      } else if (needDT) {
+        reply += " Für welches Datum und welche Uhrzeit wünschen Sie den Termin?";
       }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
