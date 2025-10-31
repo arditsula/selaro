@@ -41,8 +41,7 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
   });
   const [createAppointment, setCreateAppointment] = useState(false);
   const [appointmentData, setAppointmentData] = useState({
-    date: getTomorrowDate(),
-    time: "10:00"
+    datetime: `${getTomorrowDate()}T10:00`
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,8 +64,7 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
           name: formData.name,
           phone: formData.phone,
           service: formData.service,
-          date: appointmentData.date,
-          time: appointmentData.time,
+          datetime: appointmentData.datetime,
           notes: "Created from call simulation demo"
         };
 
@@ -208,33 +206,18 @@ export default function CallSimulationModal({ open, onOpenChange, onLogCall }: C
             </div>
             
             {createAppointment && (
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <Label htmlFor="appointmentDate" className="text-sm font-medium text-[#6B7280] mb-2 block">
-                    Appointment Date
-                  </Label>
-                  <Input 
-                    id="appointmentDate"
-                    type="date"
-                    value={appointmentData.date}
-                    onChange={(e) => setAppointmentData({ ...appointmentData, date: e.target.value })}
-                    className="border-[#E5E7EB]"
-                    data-testid="input-appointment-date"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="appointmentTime" className="text-sm font-medium text-[#6B7280] mb-2 block">
-                    Appointment Time
-                  </Label>
-                  <Input 
-                    id="appointmentTime"
-                    type="time"
-                    value={appointmentData.time}
-                    onChange={(e) => setAppointmentData({ ...appointmentData, time: e.target.value })}
-                    className="border-[#E5E7EB]"
-                    data-testid="input-appointment-time"
-                  />
-                </div>
+              <div className="pt-2">
+                <Label htmlFor="appointmentDatetime" className="text-sm font-medium text-[#6B7280] mb-2 block">
+                  Appointment Date & Time
+                </Label>
+                <Input 
+                  id="appointmentDatetime"
+                  type="datetime-local"
+                  value={appointmentData.datetime}
+                  onChange={(e) => setAppointmentData({ datetime: e.target.value })}
+                  className="border-[#E5E7EB]"
+                  data-testid="input-appointment-datetime"
+                />
               </div>
             )}
           </div>

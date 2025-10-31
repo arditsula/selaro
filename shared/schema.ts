@@ -37,8 +37,7 @@ export const appointmentSchema = z.object({
   name: z.string(),
   phone: z.string(),
   service: z.string(),
-  date: z.string(),
-  time: z.string(),
+  datetime: z.string(),
   notes: z.string().optional(),
   status: z.enum(["Pending", "Confirmed", "Cancelled"]),
   createdAt: z.string(),
@@ -49,10 +48,10 @@ export const insertAppointmentSchema = appointmentSchema.omit({ id: true, status
 export const updateAppointmentSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
+  datetime: z.string().optional(),
+  service: z.string().optional(),
   status: z.enum(["Pending", "Confirmed", "Cancelled"]).optional(),
   notes: z.string().optional(),
-  date: z.string().optional(),
-  time: z.string().optional(),
 });
 
 export type Appointment = z.infer<typeof appointmentSchema>;

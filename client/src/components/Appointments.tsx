@@ -20,8 +20,7 @@ const formSchema = insertAppointmentSchema.extend({
   name: z.string().min(1, 'Name is required'),
   phone: z.string().min(1, 'Phone is required'),
   service: z.string().min(1, 'Service is required'),
-  date: z.string().min(1, 'Date is required'),
-  time: z.string().min(1, 'Time is required'),
+  datetime: z.string().min(1, 'Date and time are required'),
 });
 
 export default function Appointments() {
@@ -38,8 +37,7 @@ export default function Appointments() {
       name: '',
       phone: '',
       service: '',
-      date: '',
-      time: '',
+      datetime: '',
       notes: '',
     },
   });
@@ -106,8 +104,8 @@ export default function Appointments() {
     weekFromNow.setDate(weekFromNow.getDate() + 7);
 
     return appointments.filter(apt => {
-      const [year, month, day] = apt.date.split('-').map(Number);
-      const aptDate = new Date(year, month - 1, day);
+      if (!apt.datetime) return false;
+      const aptDate = new Date(apt.datetime);
       
       if (filter === 'today') {
         return aptDate.getFullYear() === today.getFullYear() &&
@@ -116,7 +114,8 @@ export default function Appointments() {
       }
       
       if (filter === 'week') {
-        return aptDate >= today && aptDate < weekFromNow;
+        const aptDay = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+        return aptDay >= today && aptDay < weekFromNow;
       }
       
       return true;
@@ -226,40 +225,18 @@ export default function Appointments() {
 
                   <FormField
                     control={form.control}
-                    name="date"
+                    name="datetime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Date</FormLabel>
+                        <FormLabel>Date & Time</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input 
-                              type="date" 
+                              type="datetime-local" 
                               className="pl-10" 
                               {...field} 
-                              data-testid="input-appointment-date"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="time"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Time</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input 
-                              type="time" 
-                              className="pl-10" 
-                              {...field} 
-                              data-testid="input-appointment-time"
+                              data-testid="input-appointment-datetime"
                             />
                           </div>
                         </FormControl>
@@ -358,14 +335,18 @@ export default function Appointments() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredAppointments.map((apt) => (
+                      {filteredAppointments.map((apt) => {
+                        const dt = apt.datetime ? new Date(apt.datetime) : null;
+                        return (
                         <tr key={apt.id} className="border-b hover-elevate" data-testid={`row-appointment-${apt.id}`}>
                           <td className="py-3 px-2 text-sm" data-testid={`text-date-${apt.id}`}>
-                            {new Date(apt.date).toLocaleDateString('de-DE')}
+                            {dt ? dt.toLocaleDateString('de-DE') : '-'}
                           </td>
-                          <td className="py-3 px-2 text-sm" data-testid={`text-time-${apt.id}`}>{apt.time}</td>
-                          <td className="py-3 px-2 text-sm font-medium" data-testid={`text-name-${apt.id}`}>{apt.name}</td>
-                          <td className="py-3 px-2 text-sm text-gray-600" data-testid={`text-phone-${apt.id}`}>{apt.phone}</td>
+                          <td className="py-3 px-2 text-sm" data-testid={`text-time-${apt.id}`}>
+                            {dt ? dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </td>
+                          <td className="py-3 px-2 text-sm font-medium" data-testid={`text-name-${apt.id}`}>{apt.name || '-'}</td>
+                          <td className="py-3 px-2 text-sm text-gray-600" data-testid={`text-phone-${apt.id}`}>{apt.phone || '-'}</td>
                           <td className="py-3 px-2 text-sm" data-testid={`text-service-${apt.id}`}>{apt.service}</td>
                           <td className="py-3 px-2">
                             <Badge 
@@ -415,7 +396,8 @@ export default function Appointments() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      );
+                      })}
                     </tbody>
                   </table>
                 </div>

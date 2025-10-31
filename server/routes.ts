@@ -62,31 +62,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // critical: keep session stable per call
           "x-client-id": req.body.CallSid || req.headers["x-twilio-callsid"] || "anon"
         },
         body: JSON.stringify({ message: SpeechResult })
       });
       
       const assistantData = await assistantResponse.json();
-      const reply = assistantData.reply || "Entschuldigung, ich habe das nicht verstanden.";
+      let reply = assistantData.reply || "Entschuldigung, ich habe das nicht verstanden.";
       
-      const sid = req.body.CallSid || "anon";
-      const lastId = getLastAppointmentId(sid);
-      let haveName = false, havePhone = false;
-      
-      if (lastId) {
-        try {
-          const appt = await storage.getAppointment(lastId);
-          haveName = !!(appt?.name && appt.name.trim());
-          havePhone = !!(appt?.phone && appt.phone.trim());
-        } catch {}
-      }
-      
-      if (haveName && havePhone) {
+      if (reply.includes("__COMPLETE__")) {
+        const cleanReply = reply.replace("__COMPLETE__", "").trim();
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
+  <Say language="de-DE" voice="Polly.Marlene">${cleanReply}</Say>
   <Say language="de-DE" voice="Polly.Marlene">Vielen Dank für Ihren Anruf. Auf Wiederhören!</Say>
   <Hangup/>
 </Response>`;
@@ -94,17 +82,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(twiml);
       }
       
-      let promptNext = reply;
-      if (!haveName && havePhone) {
-        promptNext = reply + " Könnten Sie mir bitte noch Ihren vollständigen Namen sagen?";
-      }
-      if (haveName && !havePhone) {
-        promptNext = reply + " Könnten Sie mir bitte noch eine Rückrufnummer geben?";
+      const sid = req.body.CallSid || "anon";
+      const lastId = getLastAppointmentId(sid);
+      
+      if (lastId) {
+        try {
+          const appt = await storage.getAppointment(lastId);
+          const hasName = !!(appt?.name && appt.name.trim());
+          const hasPhone = !!(appt?.phone && appt.phone.trim());
+          const hasDatetime = !!(appt?.datetime && appt.datetime.trim());
+          
+          if (!hasName) {
+            reply += " Könnten Sie mir bitte noch Ihren vollständigen Namen sagen?";
+          } else if (!hasPhone) {
+            reply += " Könnten Sie mir bitte noch eine Rückrufnummer geben?";
+          } else if (!hasDatetime) {
+            reply += " Für welches Datum und welche Uhrzeit wünschen Sie den Termin?";
+          }
+        } catch {}
       }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="de-DE" voice="Polly.Marlene">${promptNext}</Say>
+  <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
   <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
 </Response>`;
       res.set('Content-Type', 'text/xml');
@@ -232,106 +232,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   function detectBookingIntent(message: string): boolean {
     const lowerMessage = message.toLowerCase();
-    const bookingKeywords = ["termin", "vereinbaren", "buchen", "möchte", "kommen", "um", "uhr"];
+    const bookingKeywords = ["termin", "vereinbaren", "buchen", "möchte", "kommen", "heute", "morgen", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag"];
     return bookingKeywords.some(keyword => lowerMessage.includes(keyword));
   }
 
-  function formatDateToYYYYMMDD(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  function extractDate(message: string): string | null {
-    const lowerMessage = message.toLowerCase();
+  function parseDatetime(message: string): string | null {
+    const lower = message.toLowerCase();
     const today = new Date();
     
-    if (lowerMessage.includes("heute")) {
-      return formatDateToYYYYMMDD(today);
-    }
+    let targetDate: Date | null = null;
+    let timeStr = "";
     
-    if (lowerMessage.includes("morgen")) {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return formatDateToYYYYMMDD(tomorrow);
-    }
-    
-    const weekdayMap: Record<string, number> = {
-      "montag": 1,
-      "dienstag": 2,
-      "mittwoch": 3,
-      "donnerstag": 4,
-      "freitag": 5,
-      "samstag": 6,
-      "sonntag": 0
-    };
-    
-    for (const [dayName, targetDay] of Object.entries(weekdayMap)) {
-      if (lowerMessage.includes(dayName)) {
-        const currentDay = today.getDay();
-        let daysToAdd = targetDay - currentDay;
-        if (daysToAdd <= 0) {
-          daysToAdd += 7;
+    if (lower.includes("heute")) {
+      targetDate = today;
+    } else if (lower.includes("morgen")) {
+      targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + 1);
+    } else {
+      const weekdayMap: Record<string, number> = {
+        "montag": 1, "dienstag": 2, "mittwoch": 3,
+        "donnerstag": 4, "freitag": 5, "samstag": 6, "sonntag": 0
+      };
+      
+      for (const [dayName, targetDay] of Object.entries(weekdayMap)) {
+        if (lower.includes(dayName)) {
+          const currentDay = today.getDay();
+          let daysToAdd = targetDay - currentDay;
+          if (daysToAdd <= 0) daysToAdd += 7;
+          targetDate = new Date(today);
+          targetDate.setDate(targetDate.getDate() + daysToAdd);
+          break;
         }
-        const targetDate = new Date(today);
-        targetDate.setDate(targetDate.getDate() + daysToAdd);
-        return formatDateToYYYYMMDD(targetDate);
+      }
+      
+      const explicitDateMatch = message.match(/(?:am\s+)?(\d{1,2})\.(\d{1,2})\.(?:(\d{4}))?/);
+      if (explicitDateMatch) {
+        const day = parseInt(explicitDateMatch[1]);
+        const month = parseInt(explicitDateMatch[2]) - 1;
+        const year = explicitDateMatch[3] ? parseInt(explicitDateMatch[3]) : today.getFullYear();
+        targetDate = new Date(year, month, day);
       }
     }
     
-    return null;
-  }
-
-  function extractTime(message: string): string | null {
-    const timePatternWithColon = /(\d{1,2})[.:](\d{2})/;
-    const timePatternWithUhr = /(\d{1,2})\s*uhr/i;
-    
-    let match = message.match(timePatternWithColon);
-    if (match) {
-      const hours = match[1].padStart(2, '0');
-      const minutes = match[2];
-      return `${hours}:${minutes}`;
-    }
-    
-    match = message.match(timePatternWithUhr);
-    if (match) {
-      const hours = match[1].padStart(2, '0');
-      return `${hours}:00`;
-    }
-    
-    return null;
-  }
-
-  function extractName(message: string): string | null {
-    const lowerMessage = message.toLowerCase();
-    
-    const namePatterns = [
-      /(?:ich\s+hei(?:ß|ss)e|mein\s+name\s+ist)\s+([a-zäöüß]+(?:\s+[a-zäöüß]+)*)/i,
-      /^([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)+)$/
-    ];
-    
-    for (const pattern of namePatterns) {
-      const match = message.match(pattern);
-      if (match && match[1]) {
-        return match[1].trim();
+    const timeMatch = message.match(/(?:um\s+)?(\d{1,2})[:.:](\d{2})/);
+    if (timeMatch) {
+      timeStr = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+    } else {
+      const uhrMatch = message.match(/(?:um\s+)?(\d{1,2})\s*uhr/i);
+      if (uhrMatch) {
+        timeStr = `${uhrMatch[1].padStart(2, '0')}:00`;
       }
     }
     
-    return null;
-  }
-
-  function extractPhone(message: string): string | null {
-    const phonePatterns = [
-      /(?:meine\s+(?:nummer|telefonnummer)\s+(?:ist|lautet))\s*([\d\s\-\/+()]+)/i,
-      /\b((?:\+49|0)\s*\d{2,4}[\s\-\/]?\d{3,}[\s\-\/]?\d{3,})\b/
-    ];
-    
-    for (const pattern of phonePatterns) {
-      const match = message.match(pattern);
-      if (match && match[1]) {
-        return match[1].trim();
-      }
+    if (targetDate && timeStr) {
+      const year = targetDate.getFullYear();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}T${timeStr}`;
     }
     
     return null;
@@ -350,63 +307,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const sid = (req.headers["x-client-id"] as string) || "anon";
       
-      const nameMatch = validatedData.message.match(/(?:ich\s*hei(?:ße|sse)|mein\s+name\s+ist)\s+([a-zäöüß \-']{2,})/i);
-      const phoneMatch = validatedData.message.match(/(?:meine\s+nummer\s+ist|rückrufnummer(?:\s*ist)?)\s*([+0-9][0-9 ()\-]{6,})/i);
+      const hasBookingIntent = detectBookingIntent(validatedData.message);
+      let appointmentId = getLastAppointmentId(sid);
       
-      if (nameMatch || phoneMatch) {
-        const lastId = getLastAppointmentId(sid);
-        
-        if (lastId) {
-          if (nameMatch) {
-            const fullName = nameMatch[1].trim();
-            await storage.updateAppointment(lastId, { name: fullName });
-            return res.json({ ok: true, reply: "Danke! Ich habe Ihren Namen zum Termin hinzugefügt." });
-          }
-          
-          if (phoneMatch) {
-            const raw = phoneMatch[1];
-            const digits = raw.replace(/[^\d+]/g, "");
-            await storage.updateAppointment(lastId, { phone: digits });
-            return res.json({ ok: true, reply: "Perfekt! Ich habe Ihre Rückrufnummer gespeichert." });
-          }
-        }
+      if (hasBookingIntent && !appointmentId) {
+        const pendingAppt = await storage.createAppointment({
+          name: "",
+          phone: "",
+          service: "Allgemeine Behandlung",
+          datetime: "",
+          notes: "Created via voice"
+        });
+        appointmentId = pendingAppt.id;
+        setLastAppointmentId(sid, appointmentId);
       }
       
-      const hasBookingIntent = detectBookingIntent(validatedData.message);
+      const nameMatch = validatedData.message.match(/(?:ich\s*hei(?:ße|sse)|mein\s+name\s+ist)\s+([a-zäöüß \-']{2,})/i);
+      const phoneMatch = validatedData.message.match(/(?:meine\s+nummer\s+ist|rückrufnummer(?:\s*ist)?)\s*([+0-9][0-9 ()\-]{6,})/i);
+      const datetimeStr = parseDatetime(validatedData.message);
       
-      if (hasBookingIntent) {
-        const extractedDate = extractDate(validatedData.message);
-        const extractedTime = extractTime(validatedData.message);
+      if (appointmentId && (nameMatch || phoneMatch || datetimeStr)) {
+        let reply = "";
         
-        if (extractedDate && extractedTime) {
-          try {
-            const appointmentData = {
-              name: "Unbekannt",
-              phone: "",
-              service: "Allgemeine Behandlung",
-              date: extractedDate,
-              time: extractedTime,
-              notes: "Created automatically via chat",
-              status: "Pending"
-            };
-            
-            const appointment = await storage.createAppointment(appointmentData);
-            setLastAppointmentId(sid, appointment.id);
-            
-            const [year, month, day] = extractedDate.split('-');
-            const formattedDate = `${day}.${month}.${year}`;
-            
-            const reply = `Super! Ich habe einen vorläufigen Termin für ${formattedDate} um ${extractedTime} eingetragen. Unser Team wird ihn in Kürze bestätigen. 😊`;
-            return res.json({ ok: true, reply });
-          } catch (appointmentError) {
-            console.error("Failed to create appointment:", appointmentError);
-            const reply = "Entschuldigung, ich konnte den Termin nicht erstellen. Bitte versuchen Sie es später erneut.";
-            return res.json({ ok: true, reply });
-          }
-        } else {
-          const reply = "Verstanden! Für welche Uhrzeit und welches Datum soll ich den Termin eintragen?";
-          return res.json({ ok: true, reply });
+        if (nameMatch) {
+          const fullName = nameMatch[1].trim();
+          await storage.updateAppointment(appointmentId, { name: fullName });
+          reply = "Danke! Ich habe Ihren Namen zum Termin hinzugefügt.";
+        } else if (phoneMatch) {
+          const raw = phoneMatch[1];
+          const digits = raw.replace(/[^\d+]/g, "");
+          await storage.updateAppointment(appointmentId, { phone: digits });
+          reply = "Perfekt! Ich habe Ihre Rückrufnummer gespeichert.";
+        } else if (datetimeStr) {
+          await storage.updateAppointment(appointmentId, { datetime: datetimeStr });
+          const dt = new Date(datetimeStr);
+          const formattedDate = `${dt.getDate()}.${dt.getMonth() + 1}.${dt.getFullYear()}`;
+          const formattedTime = datetimeStr.split('T')[1];
+          reply = `Super! Ich habe den Termin für ${formattedDate} um ${formattedTime} Uhr notiert.`;
         }
+        
+        const appt = await storage.getAppointment(appointmentId);
+        const hasName = !!(appt?.name && appt.name.trim());
+        const hasPhone = !!(appt?.phone && appt.phone.trim());
+        const hasDatetime = !!(appt?.datetime && appt.datetime.trim());
+        
+        if (hasName && hasPhone && hasDatetime) {
+          reply += " __COMPLETE__";
+        }
+        
+        return res.json({ ok: true, reply });
       }
 
       let clinicKnowledge = "";
@@ -420,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const systemPrompt = "You are a friendly AI receptionist for a dental clinic. Use the knowledge provided by the clinic to answer accurately, warmly, and briefly.";
+      const systemPrompt = "You are a friendly AI receptionist for a dental clinic. Use the knowledge provided by the clinic to answer accurately, warmly, and briefly in German.";
       
       const userMessage = clinicKnowledge 
         ? `Clinic Info: ${clinicKnowledge}\n\nPatient question: ${validatedData.message}`
@@ -437,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           max_tokens: 300,
         });
 
-        const reply = completion.choices[0].message.content || "I apologize, but I couldn't generate a response. Please try again.";
+        const reply = completion.choices[0].message.content || "Entschuldigung, ich konnte keine Antwort generieren.";
         res.json({ ok: true, reply });
       } catch (openaiError) {
         console.error("OpenAI API error:", openaiError);

@@ -70,8 +70,8 @@ export class MemStorage implements IStorage {
 
   async getAllAppointments(): Promise<Appointment[]> {
     return this.appointments.sort((a, b) => {
-      const dateA = new Date(`${a.date} ${a.time}`).getTime();
-      const dateB = new Date(`${b.date} ${b.time}`).getTime();
+      const dateA = new Date(a.datetime).getTime();
+      const dateB = new Date(b.datetime).getTime();
       return dateB - dateA;
     });
   }
