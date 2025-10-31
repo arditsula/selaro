@@ -246,7 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let parsedDate: string | null = null;
     let parsedTime: string | null = null;
     
-    const dateMatch = message.match(/\b(\d{1,2})[.\-/](\d{1,2})(?:[.\-/](\d{2,4}))?\b/);
+    const dateRe = /\b(?:am\s*)?(\d{1,2})[.\-/](\d{1,2})(?:[.\-/](\d{2,4}))?\b/i;
+    const dateMatch = message.match(dateRe);
     if (dateMatch) {
       const day = parseInt(dateMatch[1], 10);
       const month = parseInt(dateMatch[2], 10);
@@ -263,22 +264,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     
-    const timeMatch = message.match(/\b(\d{1,2})[:.](\d{2})\b/);
+    const timeRe = /\bum\s*(\d{1,2})[:.](\d{2})\b|\b(\d{1,2})\s*uhr\b/i;
+    const timeMatch = message.match(timeRe);
     if (timeMatch) {
-      const hour = parseInt(timeMatch[1], 10);
-      const minute = parseInt(timeMatch[2], 10);
+      let hour: number;
+      let minute: number;
+      
+      if (timeMatch[1] !== undefined) {
+        hour = parseInt(timeMatch[1], 10);
+        minute = parseInt(timeMatch[2], 10);
+      } else {
+        hour = parseInt(timeMatch[3], 10);
+        minute = 0;
+      }
       
       if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
         parsedTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      }
-    } else {
-      const uhrMatch = message.match(/\b(\d{1,2})\s*uhr\b/i);
-      if (uhrMatch) {
-        const hour = parseInt(uhrMatch[1], 10);
-        
-        if (hour >= 0 && hour <= 23) {
-          parsedTime = `${String(hour).padStart(2, '0')}:00`;
-        }
       }
     }
     
