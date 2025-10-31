@@ -78,6 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let needName = true;
       let needPhone = true;
       let needDT = true;
+      let needService = true;
       
       if (lastId) {
         try {
@@ -85,10 +86,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           needName = !(appt?.name && appt.name.trim());
           needPhone = !(appt?.phone && appt.phone.trim());
           needDT = !(appt?.datetime && appt.datetime.trim());
+          needService = !(appt?.service && appt.service.trim() && appt.service !== "Allgemeine Behandlung");
         } catch {}
       }
       
-      if (!needName && !needPhone && !needDT) {
+      if (!needName && !needPhone && !needDT && !needService) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
@@ -105,6 +107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reply += " Könnten Sie mir bitte noch eine Rückrufnummer geben?";
       } else if (needDT) {
         reply += " Für welches Datum und welche Uhrzeit wünschen Sie den Termin?";
+      } else if (needService) {
+        reply += " Welchen Service wünschen Sie (z. B. Zahnreinigung, Füllung, Implantat)?";
       }
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -239,6 +243,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const lowerMessage = message.toLowerCase();
     const bookingKeywords = ["termin", "vereinbaren", "buchen", "möchte", "kommen", "heute", "morgen", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag"];
     return bookingKeywords.some(keyword => lowerMessage.includes(keyword));
+  }
+
+  function detectService(message: string): string | null {
+    const lowerMessage = message.toLowerCase();
+    const serviceMap: Record<string, string[]> = {
+      "Zahnreinigung": ["prophylaxe", "zahnreinigung", "reinigung"],
+      "Füllung": ["füllung", "loch", "karies"],
+      "Schmerz/Notfall": ["notfall", "schmerzen", "akut"],
+      "Implantat": ["implantat", "implantate"],
+      "Krone/Brücke": ["krone", "brücke"],
+      "Wurzelbehandlung": ["wurzel", "wurzelbehandlung"]
+    };
+    
+    for (const [service, keywords] of Object.entries(serviceMap)) {
+      if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+        return service;
+      }
+    }
+    
+    return null;
   }
 
   function parseExplicitDateTime(message: string): { date: string | null; time: string | null; datetime: string | null } {
@@ -380,8 +404,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const relativeParsed = parseDatetime(validatedData.message);
       
       const datetimeStr = explicitParsed.datetime || relativeParsed;
+      const detectedService = detectService(validatedData.message);
       
-      if (appointmentId && (nameMatch || phoneMatch || datetimeStr || explicitParsed.date || explicitParsed.time)) {
+      if (appointmentId && (nameMatch || phoneMatch || datetimeStr || explicitParsed.date || explicitParsed.time || detectedService)) {
         let reply = "";
         
         if (nameMatch) {
@@ -393,6 +418,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const digits = raw.replace(/[^\d+]/g, "");
           await storage.updateAppointment(appointmentId, { phone: digits });
           reply = "Perfekt! Ich habe Ihre Rückrufnummer gespeichert.";
+        } else if (detectedService) {
+          await storage.updateAppointment(appointmentId, { service: detectedService });
+          reply = `Verstanden, ich habe "${detectedService}" notiert.`;
         } else if (datetimeStr) {
           await storage.updateAppointment(appointmentId, { datetime: datetimeStr });
           const dt = new Date(datetimeStr);
@@ -411,8 +439,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const hasName = !!(appt?.name && appt.name.trim());
         const hasPhone = !!(appt?.phone && appt.phone.trim());
         const hasDatetime = !!(appt?.datetime && appt.datetime.trim());
+        const hasService = !!(appt?.service && appt.service.trim() && appt.service !== "Allgemeine Behandlung");
         
-        if (hasName && hasPhone && hasDatetime) {
+        if (hasName && hasPhone && hasDatetime && hasService) {
           reply += " __COMPLETE__";
         }
         
