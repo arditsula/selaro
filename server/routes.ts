@@ -236,6 +236,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return bookingKeywords.some(keyword => lowerMessage.includes(keyword));
   }
 
+  function parseExplicitDateTime(message: string): { date: string | null; time: string | null; datetime: string | null } {
+    const today = new Date();
+    let parsedDate: string | null = null;
+    let parsedTime: string | null = null;
+    
+    const dateMatch = message.match(/\b(\d{1,2})[.\-/](\d{1,2})(?:[.\-/](\d{2,4}))?\b/);
+    if (dateMatch) {
+      const day = parseInt(dateMatch[1], 10);
+      const month = parseInt(dateMatch[2], 10);
+      let year = dateMatch[3] ? parseInt(dateMatch[3], 10) : today.getFullYear();
+      
+      if (dateMatch[3] && year < 100) {
+        year += 2000;
+      }
+      
+      if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+        const paddedMonth = String(month).padStart(2, '0');
+        const paddedDay = String(day).padStart(2, '0');
+        parsedDate = `${year}-${paddedMonth}-${paddedDay}`;
+      }
+    }
+    
+    const timeMatch = message.match(/\b(\d{1,2})[:.](\d{2})\b/);
+    if (timeMatch) {
+      const hour = parseInt(timeMatch[1], 10);
+      const minute = parseInt(timeMatch[2], 10);
+      
+      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        parsedTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      }
+    } else {
+      const uhrMatch = message.match(/\b(\d{1,2})\s*uhr\b/i);
+      if (uhrMatch) {
+        const hour = parseInt(uhrMatch[1], 10);
+        
+        if (hour >= 0 && hour <= 23) {
+          parsedTime = `${String(hour).padStart(2, '0')}:00`;
+        }
+      }
+    }
+    
+    const datetime = (parsedDate && parsedTime) ? `${parsedDate}T${parsedTime}` : null;
+    
+    return { date: parsedDate, time: parsedTime, datetime };
+  }
+
   function parseDatetime(message: string): string | null {
     const lower = message.toLowerCase();
     const today = new Date();
@@ -264,23 +310,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
         }
       }
-      
-      const explicitDateMatch = message.match(/(?:am\s+)?(\d{1,2})\.(\d{1,2})\.(?:(\d{4}))?/);
-      if (explicitDateMatch) {
-        const day = parseInt(explicitDateMatch[1]);
-        const month = parseInt(explicitDateMatch[2]) - 1;
-        const year = explicitDateMatch[3] ? parseInt(explicitDateMatch[3]) : today.getFullYear();
-        targetDate = new Date(year, month, day);
-      }
     }
     
     const timeMatch = message.match(/(?:um\s+)?(\d{1,2})[:.:](\d{2})/);
     if (timeMatch) {
-      timeStr = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+      const hour = parseInt(timeMatch[1], 10);
+      const minute = parseInt(timeMatch[2], 10);
+      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      }
     } else {
       const uhrMatch = message.match(/(?:um\s+)?(\d{1,2})\s*uhr/i);
       if (uhrMatch) {
-        timeStr = `${uhrMatch[1].padStart(2, '0')}:00`;
+        const hour = parseInt(uhrMatch[1], 10);
+        if (hour >= 0 && hour <= 23) {
+          timeStr = `${String(hour).padStart(2, '0')}:00`;
+        }
       }
     }
     
@@ -324,9 +369,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const nameMatch = validatedData.message.match(/(?:ich\s*hei(?:ße|sse)|mein\s+name\s+ist)\s+([a-zäöüß \-']{2,})/i);
       const phoneMatch = validatedData.message.match(/(?:meine\s+nummer\s+ist|rückrufnummer(?:\s*ist)?)\s*([+0-9][0-9 ()\-]{6,})/i);
-      const datetimeStr = parseDatetime(validatedData.message);
       
-      if (appointmentId && (nameMatch || phoneMatch || datetimeStr)) {
+      const explicitParsed = parseExplicitDateTime(validatedData.message);
+      const relativeParsed = parseDatetime(validatedData.message);
+      
+      const datetimeStr = explicitParsed.datetime || relativeParsed;
+      
+      if (appointmentId && (nameMatch || phoneMatch || datetimeStr || explicitParsed.date || explicitParsed.time)) {
         let reply = "";
         
         if (nameMatch) {
@@ -344,6 +393,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const formattedDate = `${dt.getDate()}.${dt.getMonth() + 1}.${dt.getFullYear()}`;
           const formattedTime = datetimeStr.split('T')[1];
           reply = `Super! Ich habe den Termin für ${formattedDate} um ${formattedTime} Uhr notiert.`;
+        } else if (explicitParsed.date && !explicitParsed.time) {
+          reply = "Verstanden. Um wie viel Uhr passt es Ihnen?";
+          return res.json({ ok: true, reply });
+        } else if (explicitParsed.time && !explicitParsed.date) {
+          reply = "Gerne. Für welches Datum wünschen Sie den Termin?";
+          return res.json({ ok: true, reply });
         }
         
         const appt = await storage.getAppointment(appointmentId);
