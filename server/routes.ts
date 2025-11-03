@@ -191,6 +191,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        const appt = lastId ? await storage.getAppointment(lastId) : null;
+        await saveLead({
+          call_sid: req.body.CallSid || null,
+          name: (appt && appt.name) || "Unbekannt",
+          phone: (appt && appt.phone) || req.body.From || null,
+          concern: (appt && appt.service) || null,
+          urgency: null,
+          insurance: null,
+          preferred_slots: (appt && appt.datetime) || null,
+          notes: "Captured via Twilio voice DEMO",
+          status: "new"
+        });
+        
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">${reply}</Say>
