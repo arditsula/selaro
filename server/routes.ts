@@ -5,6 +5,11 @@ import { insertCallLogSchema, insertAppointmentSchema, updateAppointmentSchema, 
 import * as fs from "fs";
 import * as path from "path";
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) 
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) 
+  : null;
 
 const sessionAppointments = new Map<string, string>();
 
@@ -49,6 +54,51 @@ async function sendSms(to: string, body: string): Promise<void> {
   } catch (error) {
     console.error('SMS send error:', error);
   }
+}
+
+async function saveLead({ 
+  call_sid, 
+  name, 
+  phone, 
+  concern, 
+  urgency, 
+  insurance, 
+  preferred_slots, 
+  notes, 
+  status = "new" 
+}: { 
+  call_sid?: string | null; 
+  name?: string | null; 
+  phone?: string | null; 
+  concern?: string | null; 
+  urgency?: string | null; 
+  insurance?: string | null; 
+  preferred_slots?: string | any | null; 
+  notes?: string | null; 
+  status?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) {
+    console.warn("Supabase not configured");
+    return { ok: false, error: "supabase-missing" };
+  }
+  
+  const payload = {
+    call_sid: call_sid || null,
+    name: name || null,
+    phone: phone || null,
+    concern: concern || null,
+    urgency: urgency || null,
+    insurance: insurance || null,
+    preferred_slots: preferred_slots 
+      ? (typeof preferred_slots === "string" ? { raw: preferred_slots } : preferred_slots) 
+      : null,
+    notes: notes || null,
+    status,
+  };
+  
+  const { error } = await supabase.from("leads").insert(payload);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
