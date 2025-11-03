@@ -67,7 +67,7 @@ Retrieves all logged calls.
 ```
 
 ### POST /api/twilio/voice
-Twilio-compatible voice webhook for incoming calls.
+Twilio-compatible voice webhook for incoming calls (conversational AI flow).
 
 **Content-Type:** `application/x-www-form-urlencoded`
 
@@ -92,6 +92,44 @@ Twilio-compatible voice webhook for incoming calls.
   - service: "Phone inquiry"
   - preferredTime: "Call back ASAP"
   - status: "New"
+
+### POST /api/twilio/voice/step
+Structured step-by-step Twilio voice webhook that collects patient data in a fixed sequence.
+
+**Content-Type:** `application/x-www-form-urlencoded`
+
+**Request Body (form-encoded):**
+- `CallSid` - Twilio call identifier (required)
+- `From` - Caller's phone number
+- `SpeechResult` - (optional) Transcribed speech from caller
+
+**Flow Sequence:**
+1. **Step 0 (Initial)**: Asks for name
+   - Response: "Willkommen in unserer Zahnarztpraxis. Wie ist Ihr Name?"
+2. **Step 1**: After receiving name, asks for concern
+   - Response: "Danke, [Name]. Was führt Sie zu uns? Haben Sie Schmerzen oder wünschen Sie eine spezielle Behandlung?"
+3. **Step 2**: After receiving concern, asks for insurance
+   - Response: "Verstanden. Sind Sie privat oder gesetzlich versichert?"
+4. **Step 3**: After receiving insurance, asks for preferred time
+   - Response: "Wann möchten Sie gerne kommen? Zum Beispiel morgen Vormittag oder übermorgen Nachmittag?"
+5. **Step 4 (Complete)**: After receiving preferred time, saves lead to Supabase and hangs up
+   - Response: "Perfekt! Wir haben alle Informationen. Wir melden uns in Kürze bei Ihnen, um den Termin zu bestätigen. Vielen Dank für Ihren Anruf. Auf Wiederhören!"
+
+**Lead Capture:**
+- Automatically calls `saveLead()` after step 4 with:
+  - call_sid: CallSid
+  - name: Collected from step 1
+  - phone: From number
+  - concern: Collected from step 2
+  - urgency: "urgent" if concern contains "schmerz", otherwise "normal"
+  - insurance: Collected from step 3
+  - preferred_slots: Collected from step 4
+  - notes: "Erfasst via strukturierter Twilio-Schritt-für-Schritt-Flow"
+  - status: "new"
+
+**State Management:**
+- Call state is stored in memory per CallSid
+- State is automatically deleted after call completion
 
 ### GET /api/health
 Health check endpoint.

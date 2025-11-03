@@ -21,6 +21,30 @@ function getLastAppointmentId(clientId: string): string | undefined {
   return sessionAppointments.get(clientId);
 }
 
+interface CallState {
+  step: number;
+  name?: string;
+  concern?: string;
+  insurance?: string;
+  preferredTime?: string;
+  from?: string;
+}
+
+const callStates = new Map<string, CallState>();
+
+function getCallState(callSid: string): CallState {
+  if (!callStates.has(callSid)) {
+    callStates.set(callSid, { step: 0 });
+  }
+  return callStates.get(callSid)!;
+}
+
+function updateCallState(callSid: string, updates: Partial<CallState>): void {
+  const state = getCallState(callSid);
+  Object.assign(state, updates);
+  callStates.set(callSid, state);
+}
+
 async function sendSms(to: string, body: string): Promise<void> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -237,6 +261,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
 <Response>
   <Say language="de-DE" voice="Polly.Marlene">Entschuldigung, bitte wiederholen Sie das.</Say>
   <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice" method="POST" />
+</Response>`;
+      res.set('Content-Type', 'text/xml');
+      res.send(errorTwiml);
+    }
+  });
+
+  app.post("/api/twilio/voice/step", async (req, res) => {
+    try {
+      const { CallSid, SpeechResult, From } = req.body;
+      
+      if (!CallSid) {
+        const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Fehler: CallSid fehlt.</Say>
+  <Hangup/>
+</Response>`;
+        res.set('Content-Type', 'text/xml');
+        return res.send(errorTwiml);
+      }
+      
+      const state = getCallState(CallSid);
+      
+      if (!state.from && From) {
+        updateCallState(CallSid, { from: From });
+      }
+      
+      if (SpeechResult) {
+        if (state.step === 0) {
+          updateCallState(CallSid, { name: SpeechResult, step: 1 });
+          const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Danke, ${SpeechResult}. Was führt Sie zu uns? Haben Sie Schmerzen oder wünschen Sie eine spezielle Behandlung?</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice/step" method="POST" />
+</Response>`;
+          res.set('Content-Type', 'text/xml');
+          return res.send(twiml);
+        } else if (state.step === 1) {
+          updateCallState(CallSid, { concern: SpeechResult, step: 2 });
+          const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Verstanden. Sind Sie privat oder gesetzlich versichert?</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice/step" method="POST" />
+</Response>`;
+          res.set('Content-Type', 'text/xml');
+          return res.send(twiml);
+        } else if (state.step === 2) {
+          updateCallState(CallSid, { insurance: SpeechResult, step: 3 });
+          const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Wann möchten Sie gerne kommen? Zum Beispiel morgen Vormittag oder übermorgen Nachmittag?</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice/step" method="POST" />
+</Response>`;
+          res.set('Content-Type', 'text/xml');
+          return res.send(twiml);
+        } else if (state.step === 3) {
+          updateCallState(CallSid, { preferredTime: SpeechResult, step: 4 });
+          
+          const finalState = getCallState(CallSid);
+          await saveLead({
+            call_sid: CallSid,
+            name: finalState.name || "Unbekannt",
+            phone: finalState.from || From || null,
+            concern: finalState.concern || null,
+            urgency: finalState.concern?.toLowerCase().includes("schmerz") ? "urgent" : "normal",
+            insurance: finalState.insurance || null,
+            preferred_slots: finalState.preferredTime || null,
+            notes: "Erfasst via strukturierter Twilio-Schritt-für-Schritt-Flow",
+            status: "new"
+          });
+          
+          callStates.delete(CallSid);
+          
+          const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Perfekt! Wir haben alle Informationen. Wir melden uns in Kürze bei Ihnen, um den Termin zu bestätigen. Vielen Dank für Ihren Anruf. Auf Wiederhören!</Say>
+  <Hangup/>
+</Response>`;
+          res.set('Content-Type', 'text/xml');
+          return res.send(twiml);
+        }
+      }
+      
+      let greeting = "";
+      if (state.step === 0) {
+        greeting = "Willkommen in unserer Zahnarztpraxis. Wie ist Ihr Name?";
+      } else if (state.step === 1) {
+        greeting = "Was führt Sie zu uns?";
+      } else if (state.step === 2) {
+        greeting = "Sind Sie privat oder gesetzlich versichert?";
+      } else if (state.step === 3) {
+        greeting = "Wann möchten Sie gerne kommen?";
+      }
+      
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">${greeting}</Say>
+  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice/step" method="POST" />
+</Response>`;
+      res.set('Content-Type', 'text/xml');
+      res.send(twiml);
+    } catch (error) {
+      console.error('Twilio step webhook error:', error);
+      const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="de-DE" voice="Polly.Marlene">Entschuldigung, ein Fehler ist aufgetreten. Bitte rufen Sie uns unter +49 30 555 9999 an.</Say>
+  <Hangup/>
 </Response>`;
       res.set('Content-Type', 'text/xml');
       res.send(errorTwiml);
