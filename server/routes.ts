@@ -399,15 +399,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { date: parsedDate, time: parsedTime, datetime };
   }
 
-  function parseDatetime(message: string): string | null {
+  function parseRelativeDateTime(message: string): { date: string | null; time: string | null; datetime: string | null } {
     const lower = message.toLowerCase();
     const today = new Date();
     
     let targetDate: Date | null = null;
-    let timeStr = "";
+    let timeStr: string | null = null;
     
     if (lower.includes("heute")) {
       targetDate = today;
+    } else if (lower.includes("übermorgen")) {
+      targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + 2);
     } else if (lower.includes("morgen")) {
       targetDate = new Date(today);
       targetDate.setDate(targetDate.getDate() + 1);
@@ -446,14 +449,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     
-    if (targetDate && timeStr) {
+    let parsedDate: string | null = null;
+    if (targetDate) {
       const year = targetDate.getFullYear();
       const month = String(targetDate.getMonth() + 1).padStart(2, '0');
       const day = String(targetDate.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}T${timeStr}`;
+      parsedDate = `${year}-${month}-${day}`;
     }
     
-    return null;
+    const datetime = (parsedDate && timeStr) ? `${parsedDate}T${timeStr}` : null;
+    
+    return { date: parsedDate, time: timeStr, datetime };
+  }
+
+  function parseDatetime(message: string): string | null {
+    const result = parseRelativeDateTime(message);
+    return result.datetime;
   }
 
   app.post("/api/assistant", async (req, res) => {
@@ -499,12 +510,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const phoneMatch = validatedData.message.match(/(?:meine\s+nummer\s+ist|rückrufnummer(?:\s*ist)?)\s*([+0-9][0-9 ()\-]{6,})/i);
       
       const explicitParsed = parseExplicitDateTime(validatedData.message);
-      const relativeParsed = parseDatetime(validatedData.message);
+      const relativeParsed = parseRelativeDateTime(validatedData.message);
       
-      const datetimeStr = explicitParsed.datetime || relativeParsed;
+      const datetimeStr = explicitParsed.datetime || relativeParsed.datetime;
       const detectedService = detectService(validatedData.message);
       
-      if (appointmentId && (nameMatch || phoneMatch || datetimeStr || explicitParsed.date || explicitParsed.time || detectedService)) {
+      const hasPartialExplicit = (explicitParsed.date && !explicitParsed.time) || (explicitParsed.time && !explicitParsed.date);
+      const hasPartialRelative = (relativeParsed.date && !relativeParsed.time) || (relativeParsed.time && !relativeParsed.date);
+      
+      if (appointmentId && (nameMatch || phoneMatch || datetimeStr || hasPartialExplicit || hasPartialRelative || detectedService)) {
         let reply = "";
         
         if (nameMatch) {
@@ -533,6 +547,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reply = "Verstanden. Um wie viel Uhr passt es Ihnen?";
           return res.json({ ok: true, reply });
         } else if (explicitParsed.time && !explicitParsed.date) {
+          reply = "Gerne. Für welches Datum wünschen Sie den Termin?";
+          return res.json({ ok: true, reply });
+        } else if (relativeParsed.date && !relativeParsed.time) {
+          reply = "Verstanden. Um wie viel Uhr passt es Ihnen?";
+          return res.json({ ok: true, reply });
+        } else if (relativeParsed.time && !relativeParsed.date) {
           reply = "Gerne. Für welches Datum wünschen Sie den Termin?";
           return res.json({ ok: true, reply });
         }
