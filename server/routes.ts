@@ -670,6 +670,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/debug/status", async (_req, res) => {
+    const envStatus = {
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+      OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+      TWILIO_ACCOUNT_SID: !!process.env.TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN: !!process.env.TWILIO_AUTH_TOKEN,
+      TWILIO_FROM: !!process.env.TWILIO_FROM,
+    };
+
+    let leadsTableExists = false;
+    let supabaseError = null;
+
+    if (supabase) {
+      try {
+        const { error } = await supabase.from("leads").select("*").limit(1);
+        if (error) {
+          supabaseError = error.message;
+        } else {
+          leadsTableExists = true;
+        }
+      } catch (err) {
+        supabaseError = err instanceof Error ? err.message : "Unknown error";
+      }
+    }
+
+    res.json({
+      ok: true,
+      environment: envStatus,
+      supabase: {
+        configured: !!supabase,
+        leadsTableExists,
+        error: supabaseError,
+      },
+    });
+  });
+
+  app.post("/debug/lead-test", async (_req, res) => {
+    const testLead = {
+      call_sid: `test-${Date.now()}`,
+      name: "Max Mustermann",
+      phone: "+49123456789",
+      concern: "Zahnreinigung",
+      urgency: "normal",
+      insurance: "AOK",
+      preferred_slots: "morgen um 10:00",
+      notes: "Test lead created via debug endpoint",
+      status: "new",
+    };
+
+    const result = await saveLead(testLead);
+
+    if (result.ok) {
+      res.json({
+        ok: true,
+        message: "Test lead saved successfully",
+        testData: testLead,
+      });
+    } else {
+      res.status(500).json({
+        ok: false,
+        error: result.error,
+        message: "Failed to save test lead",
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

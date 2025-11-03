@@ -103,6 +103,96 @@ Health check endpoint.
 }
 ```
 
+### GET /debug/status
+Debug endpoint to check environment variables and Supabase connection status.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "environment": {
+    "SUPABASE_URL": false,
+    "SUPABASE_ANON_KEY": false,
+    "OPENAI_API_KEY": true,
+    "TWILIO_ACCOUNT_SID": false,
+    "TWILIO_AUTH_TOKEN": false,
+    "TWILIO_FROM": false
+  },
+  "supabase": {
+    "configured": false,
+    "leadsTableExists": false,
+    "error": null
+  }
+}
+```
+
+### POST /debug/lead-test
+Debug endpoint to test Supabase lead insertion with test data.
+
+**Response (Success):**
+```json
+{
+  "ok": true,
+  "message": "Test lead saved successfully",
+  "testData": {
+    "call_sid": "test-1234567890",
+    "name": "Max Mustermann",
+    "phone": "+49123456789",
+    "concern": "Zahnreinigung",
+    "urgency": "normal",
+    "insurance": "AOK",
+    "preferred_slots": "morgen um 10:00",
+    "notes": "Test lead created via debug endpoint",
+    "status": "new"
+  }
+}
+```
+
+**Response (Error - Supabase not configured):**
+```json
+{
+  "ok": false,
+  "error": "supabase-missing",
+  "message": "Failed to save test lead"
+}
+```
+
+## Supabase Integration
+
+### Configuration
+The application supports Supabase for lead storage. Set these environment variables:
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_ANON_KEY` - Your Supabase anonymous/public key
+
+### saveLead() Helper Function
+Located in `server/routes.ts`, this function stores leads in the `leads` table:
+
+```typescript
+await saveLead({
+  call_sid: "twilio-call-sid",
+  name: "Patient Name",
+  phone: "+49123456789",
+  concern: "Zahnreinigung",
+  urgency: "normal",
+  insurance: "AOK",
+  preferred_slots: "morgen um 10:00",
+  notes: "Additional notes",
+  status: "new"
+});
+```
+
+### Database Schema
+The `leads` table should have these columns:
+- `call_sid` (text, nullable)
+- `name` (text, nullable)
+- `phone` (text, nullable)
+- `concern` (text, nullable)
+- `urgency` (text, nullable)
+- `insurance` (text, nullable)
+- `preferred_slots` (jsonb, nullable) - Stores as `{raw: string}`
+- `notes` (text, nullable)
+- `status` (text, default: "new")
+
 ## Features
 
 ### 1. Hero Section
