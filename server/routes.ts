@@ -134,7 +134,7 @@ async function saveLead({
   preferred_slots?: string | any | null; 
   notes?: string | null; 
   status?: string;
-}): Promise<{ ok: boolean; error?: string; dedup?: boolean }> {
+}): Promise<{ ok: boolean; error?: string; dedup?: boolean; id?: string | null; details?: any }> {
   if (!supabase) {
     console.warn("Supabase not configured");
     return { ok: false, error: "supabase-missing" };
@@ -167,9 +167,15 @@ async function saveLead({
     }
   }
   
-  const { error } = await supabase.from("leads").insert(payload);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  console.log("saveLead.payload →", payload);
+  
+  const { data, error } = await supabase.from("leads").insert(payload).select("id").maybeSingle();
+  if (error) {
+    console.error("saveLead.error →", error);
+    return { ok: false, error: error.message, details: error };
+  }
+  console.log("saveLead.ok →", data);
+  return { ok: true, id: data?.id || null };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -949,6 +955,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to save test lead",
       });
     }
+  });
+
+  app.post("/debug/lead-insert", async (_req, res) => {
+    const result = await saveLead({
+      call_sid: "DEBUG-" + Date.now(),
+      name: "Test Insert",
+      phone: "+491111111111",
+      concern: "Zahnreinigung",
+      urgency: "jo-akut",
+      insurance: "gesetzlich",
+      preferred_slots: { raw: "Morgen 10:00" },
+      notes: "Manual debug insert"
+    });
+
+    res.json(result);
   });
 
   app.get("/leads/last", async (req, res) => {
