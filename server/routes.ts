@@ -6,6 +6,7 @@ import * as fs from "fs";
 import * as path from "path";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) 
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) 
@@ -48,7 +49,7 @@ function updateCallState(callSid: string, updates: Partial<CallState>): void {
 async function sendSms(to: string, body: string): Promise<void> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM;
+  const fromNumber = process.env.TWILIO_MESSAGING_NUMBER || process.env.TWILIO_FROM;
 
   if (!accountSid || !authToken || !fromNumber) {
     return;
@@ -80,6 +81,39 @@ async function sendSms(to: string, body: string): Promise<void> {
   }
 }
 
+async function sendEmail(subject: string, text: string): Promise<void> {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const receptionEmail = process.env.RECEPTION_EMAIL;
+
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !receptionEmail) {
+    return;
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort),
+      secure: parseInt(smtpPort) === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: smtpUser,
+      to: receptionEmail,
+      subject,
+      text,
+    });
+  } catch (error) {
+    console.error('Email send error:', error);
+  }
+}
+
 async function saveLead({ 
   call_sid, 
   name, 
@@ -100,7 +134,7 @@ async function saveLead({
   preferred_slots?: string | any | null; 
   notes?: string | null; 
   status?: string;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; dedup?: boolean }> {
   if (!supabase) {
     console.warn("Supabase not configured");
     return { ok: false, error: "supabase-missing" };
@@ -119,6 +153,19 @@ async function saveLead({
     notes: notes || null,
     status,
   };
+  
+  if (payload.call_sid) {
+    const { data, error: checkError } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("call_sid", payload.call_sid)
+      .limit(1)
+      .maybeSingle();
+    
+    if (data) {
+      return { ok: true, dedup: true };
+    }
+  }
   
   const { error } = await supabase.from("leads").insert(payload);
   if (error) return { ok: false, error: error.message };
@@ -319,7 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateCallState(CallSid, { preferredTime: SpeechResult, step: 4 });
           
           const finalState = getCallState(CallSid);
-          await saveLead({
+          const leadResult = await saveLead({
             call_sid: CallSid,
             name: finalState.name || "Unbekannt",
             phone: finalState.from || From || null,
@@ -330,6 +377,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notes: "Erfasst via strukturierter Twilio-Schritt-für-Schritt-Flow",
             status: "new"
           });
+          
+          if (leadResult.ok && !leadResult.dedup) {
+            const callerPhone = finalState.from || From;
+            if (callerPhone) {
+              const bookingLink = process.env.BOOKING_LINK || 'https://www.zahnarzt-karli1.de/';
+              await sendSms(
+                callerPhone,
+                `Danke für Ihren Anruf bei Zahnarztpraxis Stela Xhelili. Online-Termin: ${bookingLink} Sprechzeiten: Mo–Do 08–18, Fr 08–14. Antworten Sie mit "AKUT" bei starken Schmerzen.`
+              );
+            }
+            
+            const emailBody = JSON.stringify({
+              call_sid: CallSid,
+              name: finalState.name,
+              phone: finalState.from || From,
+              concern: finalState.concern,
+              urgency: finalState.concern?.toLowerCase().includes("schmerz") ? "urgent" : "normal",
+              insurance: finalState.insurance,
+              preferred: finalState.preferredTime,
+              created_at: new Date().toISOString()
+            }, null, 2);
+            
+            await sendEmail('Neuer Lead – Zahnarztpraxis Stela Xhelili', emailBody);
+          }
           
           callStates.delete(CallSid);
           
@@ -878,6 +949,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to save test lead",
       });
     }
+  });
+
+  app.get("/leads/last", async (req, res) => {
+    const adminToken = process.env.ADMIN_TOKEN;
+    
+    if (adminToken && req.query.token !== adminToken) {
+      return res.status(403).json({ ok: false, error: "Unauthorized" });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ ok: false, error: "Supabase not configured" });
+    }
+
+    try {
+      const { data, error, count } = await supabase
+        .from("leads")
+        .select("*", { count: 'exact' })
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      console.log("Leads query result:", { dataLength: data?.length, error, count });
+
+      if (error) {
+        console.error("Leads query error:", error);
+        return res.status(500).json({ ok: false, error: error.message });
+      }
+
+      const sanitized = (data || []).map(lead => ({
+        id: lead.id,
+        created_at: lead.created_at,
+        name: lead.name,
+        phone: lead.phone,
+        concern: lead.concern,
+        urgency: lead.urgency,
+        insurance: lead.insurance,
+        status: lead.status
+      }));
+
+      res.json({ ok: true, leads: sanitized, total: count });
+    } catch (err) {
+      console.error("Leads endpoint error:", err);
+      res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : "Failed to fetch leads"
+      });
+    }
+  });
+
+  app.get("/health", async (_req, res) => {
+    const twilioEnvPresent = !!(
+      process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      (process.env.TWILIO_MESSAGING_NUMBER || process.env.TWILIO_FROM)
+    );
+
+    const smtpEnvPresent = !!(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS &&
+      process.env.RECEPTION_EMAIL
+    );
+
+    let supabaseHealthy = false;
+    if (supabase) {
+      try {
+        const { error } = await supabase.from("leads").select("id").limit(1);
+        supabaseHealthy = !error;
+      } catch {
+        supabaseHealthy = false;
+      }
+    }
+
+    res.json({
+      ok: true,
+      twilio: twilioEnvPresent,
+      supabase: supabaseHealthy,
+      sms: twilioEnvPresent,
+      email: smtpEnvPresent
+    });
   });
 
   const httpServer = createServer(app);

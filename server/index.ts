@@ -67,5 +67,21 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    const twilioEnvPresent = !!(
+      process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      (process.env.TWILIO_MESSAGING_NUMBER || process.env.TWILIO_FROM)
+    );
+    
+    const smtpEnvPresent = !!(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS &&
+      process.env.RECEPTION_EMAIL
+    );
+    
+    log(`Post-call: SMS=${twilioEnvPresent ? 'ON' : 'OFF'}, Email=${smtpEnvPresent ? 'ON' : 'OFF'}`);
   });
 })();
