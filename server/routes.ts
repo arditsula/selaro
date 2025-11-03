@@ -544,12 +544,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const formattedTime = datetimeStr.split('T')[1];
           reply = `Super! Ich habe den Termin für ${formattedDate} um ${formattedTime} Uhr notiert.`;
         } else if (explicitParsed.date && !explicitParsed.time) {
+          const testDatetime = `${explicitParsed.date}T09:00`;
+          const dt = new Date(testDatetime);
+          const dayOfWeek = dt.getDay();
+          const officeHours = parseOfficeHours(clinicKnowledge);
+          if (!officeHours.workDays.includes(dayOfWeek)) {
+            reply = "Leider ist die Praxis dann geschlossen. Passt Ihnen ein Termin zwischen 08:00 und 19:00 Uhr (Mo–Fr)?";
+            return res.json({ ok: true, reply });
+          }
           reply = "Verstanden. Um wie viel Uhr passt es Ihnen?";
           return res.json({ ok: true, reply });
         } else if (explicitParsed.time && !explicitParsed.date) {
           reply = "Gerne. Für welches Datum wünschen Sie den Termin?";
           return res.json({ ok: true, reply });
         } else if (relativeParsed.date && !relativeParsed.time) {
+          const testDatetime = `${relativeParsed.date}T09:00`;
+          const dt = new Date(testDatetime);
+          const dayOfWeek = dt.getDay();
+          const officeHours = parseOfficeHours(clinicKnowledge);
+          if (!officeHours.workDays.includes(dayOfWeek)) {
+            reply = "Leider ist die Praxis dann geschlossen. Passt Ihnen ein Termin zwischen 08:00 und 19:00 Uhr (Mo–Fr)?";
+            return res.json({ ok: true, reply });
+          }
           reply = "Verstanden. Um wie viel Uhr passt es Ihnen?";
           return res.json({ ok: true, reply });
         } else if (relativeParsed.time && !relativeParsed.date) {
