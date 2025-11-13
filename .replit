@@ -5,11 +5,6 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 [nix]
 channel = "stable-24_05"
 
-[deployment]
-deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
-
 [[ports]]
 localPort = 3456
 externalPort = 5173
@@ -43,10 +38,6 @@ localPort = 40033
 externalPort = 3000
 
 [[ports]]
-localPort = 42773
-externalPort = 5000
-
-[[ports]]
 localPort = 45569
 externalPort = 3002
 
@@ -73,3 +64,8 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[deployment]
+build = ["sh", "-c", "npm run build"]
+run = ["sh", "-c", "npm run start"]
+deploymentTarget = "cloudrun"
