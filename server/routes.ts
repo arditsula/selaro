@@ -179,6 +179,18 @@ async function saveLead({
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.get("/", (_req, res) => {
+    res.send("Selaro — AI Receptionist is live. Use /debug/status to check health.");
+  });
+
+  app.get("/debug/status", (_req, res) => {
+    res.json({ 
+      ok: true, 
+      uptime: process.uptime(), 
+      envPort: process.env.PORT || null 
+    });
+  });
+
   app.post("/api/calls/log", async (req, res) => {
     try {
       const validatedData = insertCallLogSchema.parse(req.body);

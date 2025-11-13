@@ -15,6 +15,26 @@ This is a click-through demo showcasing an AI-powered receptionist service for d
 
 ## API Routes
 
+### GET /
+Root endpoint that returns a simple text message indicating the service is live.
+
+**Response:**
+```text
+Selaro — AI Receptionist is live. Use /debug/status to check health.
+```
+
+### GET /debug/status
+Debug endpoint that returns server status information including uptime and configured port.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "uptime": 123.456,
+  "envPort": "5000"
+}
+```
+
 ### POST /api/calls/log
 Logs a new call from the simulation modal.
 
@@ -309,9 +329,23 @@ The `leads` table should have these columns:
 ## Running the Project
 
 The workflow "Start application" runs `npm run dev` which:
-1. Starts the Express server on port 5000
+1. Starts the Express server on port 5000 (development)
 2. Starts the Vite dev server
 3. Serves frontend and backend on the same port
+
+## Deployment
+
+The application is configured for Replit Deployments and custom domains (selaro.app):
+
+- **Port Handling**: The server uses `process.env.PORT || 5000`, allowing Replit Deployments to assign the correct port dynamically
+- **Root Route**: `GET /` returns a simple message confirming the service is live
+- **Health Checks**: Both `/debug/status` and `/health` endpoints available for monitoring
+- **Custom Domain**: Ready to deploy to selaro.app via Replit Deployments
+
+To deploy:
+1. Click "Deploy" in Replit
+2. Configure custom domain (selaro.app) in deployment settings
+3. All environment variables (SUPABASE_URL, OPENAI_API_KEY, etc.) are automatically carried over
 
 ## Notes
 
