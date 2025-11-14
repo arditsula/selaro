@@ -180,7 +180,220 @@ async function saveLead({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/", (_req, res) => {
-    res.send("Selaro — AI Receptionist is live. Use /debug/status to check health.");
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selaro — AI Receptionist for Dental Clinics</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      color: #1f2937;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      flex: 1;
+    }
+    
+    .hero {
+      text-align: center;
+      padding: 4rem 0;
+    }
+    
+    h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #00C896 0%, #10B981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subheadline {
+      font-size: 1.25rem;
+      color: #4b5563;
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 4rem;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 0.875rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    
+    .btn-primary {
+      background: #00C896;
+      color: white;
+      box-shadow: 0 4px 6px rgba(0, 200, 150, 0.3);
+    }
+    
+    .btn-primary:hover {
+      background: #00b586;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 200, 150, 0.4);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: #00C896;
+      border: 2px solid #00C896;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-secondary:hover {
+      background: #f0fdf9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .features {
+      background: white;
+      border-radius: 1rem;
+      padding: 2.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      margin-bottom: 3rem;
+    }
+    
+    .features h2 {
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+      color: #1f2937;
+      text-align: center;
+    }
+    
+    .features-list {
+      list-style: none;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .features-list li {
+      padding: 1rem 0;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .features-list li:last-child {
+      border-bottom: none;
+    }
+    
+    .features-list li::before {
+      content: "✓";
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      background: #00C896;
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 28px;
+      margin-right: 1rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    
+    footer {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 1.5rem;
+      text-align: center;
+      color: #6b7280;
+      font-size: 0.9rem;
+      border-top: 1px solid rgba(0, 200, 150, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .subheadline {
+        font-size: 1.1rem;
+      }
+      
+      .features {
+        padding: 1.5rem;
+      }
+      
+      .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .btn {
+        width: 100%;
+        max-width: 300px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>Your 24/7 AI Receptionist for Dental Clinics</h1>
+      <p class="subheadline">
+        Selaro answers patient calls naturally in German, captures appointment details, 
+        and stores leads automatically—so you never miss an opportunity.
+      </p>
+      
+      <div class="cta-buttons">
+        <a href="#simulate" class="btn btn-primary">Simulate a Call</a>
+        <a href="#dashboard" class="btn btn-secondary">See Dashboard Preview</a>
+      </div>
+    </div>
+    
+    <div class="features">
+      <h2>How It Works</h2>
+      <ul class="features-list">
+        <li>Missed-call capture with AI</li>
+        <li>Automatic lead storage in Supabase</li>
+        <li>Works with Twilio voice numbers</li>
+      </ul>
+    </div>
+  </div>
+  
+  <footer>
+    © Selaro — AI Receptionist for Dental Clinics
+  </footer>
+</body>
+</html>
+    `;
+    res.type('html').send(html);
   });
 
   app.get("/debug/status", (_req, res) => {
