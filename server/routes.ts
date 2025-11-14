@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      background: #f5f7fb;
       color: #1f2937;
       line-height: 1.6;
       min-height: 100vh;
@@ -205,32 +205,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     .container {
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
       padding: 2rem 1.5rem;
-      flex: 1;
+      width: 100%;
     }
     
     .hero {
       text-align: center;
-      padding: 4rem 0;
+      padding: 4rem 0 3rem 0;
     }
     
     h1 {
       font-size: 3rem;
       font-weight: 700;
-      margin-bottom: 1rem;
-      background: linear-gradient(135deg, #00C896 0%, #10B981 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      margin-bottom: 1.5rem;
+      color: #111827;
     }
     
-    .subheadline {
+    .hero p {
       font-size: 1.25rem;
       color: #4b5563;
       margin-bottom: 2.5rem;
-      max-width: 600px;
+      max-width: 700px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -240,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       gap: 1rem;
       justify-content: center;
       flex-wrap: wrap;
-      margin-bottom: 4rem;
+      margin-bottom: 3rem;
     }
     
     .btn {
@@ -257,83 +254,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     .btn-primary {
       background: #00C896;
       color: white;
-      box-shadow: 0 4px 6px rgba(0, 200, 150, 0.3);
+      border: 2px solid #00C896;
     }
     
     .btn-primary:hover {
       background: #00b586;
+      border-color: #00b586;
       transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0, 200, 150, 0.4);
     }
     
     .btn-secondary {
       background: white;
       color: #00C896;
       border: 2px solid #00C896;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
     .btn-secondary:hover {
       background: #f0fdf9;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
     
-    .features {
+    .section {
       background: white;
-      border-radius: 1rem;
+      border-radius: 0.75rem;
       padding: 2.5rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      margin-bottom: 3rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
     
-    .features h2 {
-      font-size: 1.75rem;
+    h2 {
+      font-size: 1.875rem;
       margin-bottom: 1.5rem;
-      color: #1f2937;
-      text-align: center;
+      color: #111827;
     }
     
     .features-list {
       list-style: none;
-      max-width: 600px;
-      margin: 0 auto;
+      margin: 0;
+      padding: 0;
     }
     
     .features-list li {
-      padding: 1rem 0;
-      border-bottom: 1px solid #e5e7eb;
-      font-size: 1.1rem;
+      padding: 0.875rem 0;
+      font-size: 1.125rem;
       display: flex;
       align-items: center;
-    }
-    
-    .features-list li:last-child {
-      border-bottom: none;
     }
     
     .features-list li::before {
       content: "✓";
       display: inline-block;
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       background: #00C896;
       color: white;
       border-radius: 50%;
       text-align: center;
-      line-height: 28px;
+      line-height: 26px;
       margin-right: 1rem;
       font-weight: 700;
       flex-shrink: 0;
+      font-size: 0.875rem;
+    }
+    
+    .section p {
+      color: #4b5563;
+      font-size: 1.0625rem;
+      line-height: 1.7;
     }
     
     footer {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 1.5rem;
+      background: white;
+      padding: 2rem 1.5rem;
       text-align: center;
       color: #6b7280;
       font-size: 0.9rem;
-      border-top: 1px solid rgba(0, 200, 150, 0.2);
+      margin-top: auto;
+      border-top: 1px solid #e5e7eb;
     }
     
     @media (max-width: 768px) {
@@ -341,22 +338,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         font-size: 2rem;
       }
       
-      .subheadline {
+      h2 {
+        font-size: 1.5rem;
+      }
+      
+      .hero p {
         font-size: 1.1rem;
       }
       
-      .features {
-        padding: 1.5rem;
+      .section {
+        padding: 1.75rem;
       }
       
       .cta-buttons {
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
       }
       
       .btn {
         width: 100%;
-        max-width: 300px;
         text-align: center;
       }
     }
@@ -366,7 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   <div class="container">
     <div class="hero">
       <h1>Your 24/7 AI Receptionist for Dental Clinics</h1>
-      <p class="subheadline">
+      <p>
         Selaro answers patient calls naturally in German, captures appointment details, 
         and stores leads automatically—so you never miss an opportunity.
       </p>
@@ -377,13 +377,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       </div>
     </div>
     
-    <div class="features">
+    <div id="how-it-works" class="section">
       <h2>How It Works</h2>
       <ul class="features-list">
         <li>Missed-call capture with AI</li>
         <li>Automatic lead storage in Supabase</li>
         <li>Works with Twilio voice numbers</li>
       </ul>
+    </div>
+    
+    <div id="simulate" class="section">
+      <h2>Simulate a Call (coming soon)</h2>
+      <p>
+        This will simulate the AI receptionist call flow, allowing you to experience 
+        how Selaro handles incoming patient calls, asks the right questions, and 
+        captures all necessary information seamlessly.
+      </p>
+    </div>
+    
+    <div id="dashboard" class="section">
+      <h2>Dashboard Preview</h2>
+      <p>
+        The dashboard will show recent leads from Supabase, including patient names, 
+        phone numbers, concerns, insurance information, and preferred appointment times. 
+        You'll be able to review and manage all captured leads in one place.
+      </p>
     </div>
   </div>
   
