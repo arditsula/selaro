@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import twilio from 'twilio';
 
 const app = express();
+const VoiceResponse = twilio.twiml.VoiceResponse;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
 app.get('/', (req, res) => {
   const html = `
@@ -201,26 +203,35 @@ app.get('/debug/status', (req, res) => {
 });
 
 app.post('/api/twilio/voice/step', (req, res) => {
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Gather input="speech" language="de-DE" speechTimeout="auto" action="/api/twilio/voice/next" method="POST">
-    <Say language="de-DE" voice="Polly.Marlene">Guten Tag, hier ist die digitale Rezeptionsassistenz der Zahnarztpraxis. Wie kann ich Ihnen helfen?</Say>
-  </Gather>
-</Response>`;
+  const twiml = new VoiceResponse();
   
-  res.type('text/xml');
-  res.send(twiml);
+  const gather = twiml.gather({
+    input: 'speech',
+    speechTimeout: 'auto',
+    language: 'de-DE',
+    action: '/api/twilio/voice/next',
+    method: 'POST'
+  });
+  
+  gather.say({
+    language: 'de-DE',
+    voice: 'Polly.Marlene'
+  }, 'Guten Tag, hier ist die digitale Rezeptionsassistenz der Zahnarztpraxis. Wie kann ich Ihnen helfen?');
+  
+  res.type('text/xml').send(twiml.toString());
 });
 
 app.post('/api/twilio/voice/next', (req, res) => {
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say language="de-DE" voice="Polly.Marlene">Vielen Dank. Ein Mitarbeiter meldet sich bald zurück.</Say>
-  <Hangup/>
-</Response>`;
+  const twiml = new VoiceResponse();
   
-  res.type('text/xml');
-  res.send(twiml);
+  twiml.say({
+    language: 'de-DE',
+    voice: 'Polly.Marlene'
+  }, 'Vielen Dank. Ein Mitarbeiter meldet sich bald zurück.');
+  
+  twiml.hangup();
+  
+  res.type('text/xml').send(twiml.toString());
 });
 
 const PORT = process.env.PORT || 5000;
