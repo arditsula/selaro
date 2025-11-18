@@ -1,45 +1,17 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
-run = "npm run dev"
+run = "node server.js"
+modules = ["nodejs-20", "web"]
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
 
 [[ports]]
-localPort = 3456
-externalPort = 5173
-
-[[ports]]
 localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8888
-externalPort = 6000
-
-[[ports]]
-localPort = 9999
-externalPort = 6800
-
-[[ports]]
-localPort = 33839
-externalPort = 3001
-
-[[ports]]
-localPort = 36267
-externalPort = 4200
-
-[[ports]]
-localPort = 37961
-externalPort = 3003
-
-[[ports]]
-localPort = 40033
+localPort = 46313
 externalPort = 3000
-
-[[ports]]
-localPort = 45569
-externalPort = 3002
 
 [env]
 PORT = "5000"
@@ -62,10 +34,9 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "node server.js"
 waitForPort = 5000
 
 [deployment]
-build = ["sh", "-c", "npm run build"]
-run = ["sh", "-c", "npm run start"]
+run = ["sh", "-c", "node server.js"]
 deploymentTarget = "cloudrun"
