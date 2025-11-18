@@ -1,9 +1,25 @@
 import express from 'express';
 import cors from 'cors';
 import twilio from 'twilio';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const VoiceResponse = twilio.twiml.VoiceResponse;
+
+// Supabase setup
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase =
+  supabaseUrl && supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey)
+    : null;
+
+if (!supabase) {
+  console.warn('⚠️  Supabase client not configured - SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing');
+} else {
+  console.log('✅ Supabase client configured successfully');
+}
 
 app.use(cors());
 app.use(express.json());
@@ -476,7 +492,7 @@ app.post('/api/twilio/voice/step', (req, res) => {
   res.type('text/xml').send(twiml.toString());
 });
 
-app.post('/api/twilio/voice/next', (req, res) => {
+app.post('/api/twilio/voice/next', async (req, res) => {
   const twiml = new VoiceResponse();
   
   twiml.say({
@@ -486,7 +502,332 @@ app.post('/api/twilio/voice/next', (req, res) => {
   
   twiml.hangup();
   
+  // Insert lead into Supabase
+  if (supabase) {
+    const { error } = await supabase
+      .from('leads')
+      .insert([
+        {
+          name: 'Unbekannter Anrufer',
+          phone: req.body?.Caller || null,
+          reason: 'Telefonische Anfrage',
+          preferred_time: 'unbekannt',
+          source: 'phone'
+        }
+      ]);
+    
+    if (error) {
+      console.error('Error inserting lead:', error);
+    } else {
+      console.log('✅ Lead inserted:', req.body?.Caller || 'Unknown');
+    }
+  } else {
+    console.warn('Supabase client not configured; skipping lead insert.');
+  }
+  
   res.type('text/xml').send(twiml.toString());
+});
+
+// Get leads JSON API
+app.get('/api/leads', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({
+      ok: false,
+      error: 'Supabase not configured'
+    });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      return res.status(500).json({
+        ok: false,
+        error: error.message
+      });
+    }
+
+    res.json({
+      ok: true,
+      data
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
+
+// Leads dashboard HTML
+app.get('/leads', (req, res) => {
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selaro — Leads</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #f5f7fb 0%, #e8f3f1 100%);
+      color: #1f2937;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #111827;
+      text-align: center;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: #00C896;
+      color: white;
+      box-shadow: 0 2px 4px rgba(0, 200, 150, 0.3);
+    }
+    
+    .btn-primary:hover {
+      background: #00b586;
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: #00C896;
+      border: 2px solid #00C896;
+    }
+    
+    .btn-secondary:hover {
+      background: #f0fdf9;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      background: #f9fafb;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+      color: #4b5563;
+    }
+    
+    tr:hover {
+      background: #f9fafb;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    
+    .badge-phone {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .badge-web {
+      background: #dcfce7;
+      color: #166534;
+    }
+    
+    .error-box {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6b7280;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6b7280;
+    }
+    
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+      
+      table {
+        font-size: 0.875rem;
+      }
+      
+      th, td {
+        padding: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Recent Leads</h1>
+    
+    <div class="header">
+      <a href="/" class="btn btn-secondary">← Back to Home</a>
+      <button class="btn btn-primary" onclick="loadLeads()">🔄 Refresh</button>
+    </div>
+    
+    <div class="card">
+      <div id="content" class="loading">
+        Loading leads...
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    async function loadLeads() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">Loading leads...</div>';
+      
+      try {
+        const response = await fetch('/api/leads');
+        const result = await response.json();
+        
+        if (!result.ok) {
+          content.innerHTML = \`
+            <div class="error-box">
+              <strong>Error:</strong> \${result.error || 'Failed to load leads'}
+            </div>
+          \`;
+          return;
+        }
+        
+        const leads = result.data || [];
+        
+        if (leads.length === 0) {
+          content.innerHTML = \`
+            <div class="empty-state">
+              <h3>No leads yet</h3>
+              <p>Leads will appear here when patients call via Twilio.</p>
+            </div>
+          \`;
+          return;
+        }
+        
+        let html = \`
+          <table>
+            <thead>
+              <tr>
+                <th>Created At</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Reason</th>
+                <th>Preferred Time</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+        \`;
+        
+        leads.forEach(lead => {
+          const createdAt = new Date(lead.created_at).toLocaleString();
+          const badgeClass = lead.source === 'phone' ? 'badge-phone' : 'badge-web';
+          
+          html += \`
+            <tr>
+              <td>\${createdAt}</td>
+              <td>\${lead.name || 'N/A'}</td>
+              <td>\${lead.phone || 'N/A'}</td>
+              <td>\${lead.reason || 'N/A'}</td>
+              <td>\${lead.preferred_time || 'N/A'}</td>
+              <td><span class="badge \${badgeClass}">\${lead.source || 'unknown'}</span></td>
+            </tr>
+          \`;
+        });
+        
+        html += \`
+            </tbody>
+          </table>
+        \`;
+        
+        content.innerHTML = html;
+      } catch (error) {
+        content.innerHTML = \`
+          <div class="error-box">
+            <strong>Error:</strong> \${error.message}
+          </div>
+        \`;
+      }
+    }
+    
+    // Load leads on page load
+    loadLeads();
+  </script>
+</body>
+</html>
+  `;
+  res.type('html').send(html);
 });
 
 const PORT = process.env.PORT || 5000;
