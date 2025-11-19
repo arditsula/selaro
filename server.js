@@ -2,12 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import twilio from 'twilio';
 import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 
 const app = express();
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
-// Supabase setup
-const supabaseUrl = process.env.SUPABASE_URL;
+// Supabase setup (also check for typo'd variable name)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.SUPARBASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase =
@@ -19,6 +20,145 @@ if (!supabase) {
   console.warn('⚠️  Supabase client not configured - SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing');
 } else {
   console.log('✅ Supabase client configured successfully');
+}
+
+// OpenAI setup
+const openai = process.env.OPENAI_API_KEY 
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+
+if (!openai) {
+  console.warn('⚠️  OpenAI client not configured - OPENAI_API_KEY missing');
+} else {
+  console.log('✅ OpenAI client configured successfully');
+}
+
+// Clinic ID from environment
+const CLINIC_ID = process.env.CLINIC_ID || 'bc91d95c-a05c-4004-b932-bc393f0391b6';
+
+// In-memory conversation state management
+// Key: CallSid, Value: { messages: [], extractedData: {} }
+const conversationStates = new Map();
+
+/**
+ * Fetch clinic instructions from Supabase
+ */
+async function getClinicInstructions() {
+  if (!supabase) {
+    console.warn('Supabase not configured, using default instructions');
+    return 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('clinics')
+      .select('instructions')
+      .eq('id', CLINIC_ID)
+      .single();
+
+    if (error) {
+      console.error('Error fetching clinic instructions:', error);
+      return 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+    }
+
+    return data?.instructions || 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+  } catch (err) {
+    console.error('Unexpected error fetching clinic instructions:', err);
+    return 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+  }
+}
+
+/**
+ * Call OpenAI to generate a response based on conversation history
+ */
+async function getAIResponse(messages, clinicInstructions) {
+  if (!openai) {
+    return 'Vielen Dank für Ihren Anruf. Ein Mitarbeiter wird sich bald bei Ihnen melden.';
+  }
+
+  try {
+    const systemMessage = {
+      role: 'system',
+      content: `${clinicInstructions}
+
+WICHTIGE ANWEISUNGEN:
+- Sie führen ein Telefongespräch, daher müssen Ihre Antworten kurz und natürlich sein (max 2-3 Sätze)
+- Sammeln Sie folgende Informationen: Name, Anliegen/Beschwerden, Versicherung (privat/gesetzlich), bevorzugte Terminzeit
+- Seien Sie empathisch und professionell
+- Sprechen Sie Deutsch
+- Wenn der Anrufer Schmerzen erwähnt, behandeln Sie dies als dringend
+- Am Ende des Gesprächs bestätigen Sie, dass sich die Praxis bald meldet`
+    };
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [systemMessage, ...messages],
+      temperature: 0.7,
+      max_tokens: 150
+    });
+
+    return completion.choices[0].message.content;
+  } catch (err) {
+    console.error('OpenAI API error:', err);
+    return 'Vielen Dank. Ein Mitarbeiter wird sich bald bei Ihnen melden.';
+  }
+}
+
+/**
+ * Extract structured data from conversation for lead creation
+ */
+async function extractLeadData(messages) {
+  if (!openai || messages.length < 2) {
+    return {
+      name: 'Unbekannt',
+      concern: 'Telefonische Anfrage',
+      urgency: null,
+      insurance: null,
+      preferredSlots: 'unbekannt'
+    };
+  }
+
+  try {
+    const extractionPrompt = {
+      role: 'system',
+      content: `Analysieren Sie das Gespräch und extrahieren Sie folgende Informationen im JSON-Format:
+{
+  "name": "Name des Anrufers oder 'Unbekannt'",
+  "concern": "Kurze Beschreibung des Anliegens",
+  "urgency": "urgent" wenn Schmerzen erwähnt wurden, sonst "normal",
+  "insurance": "privat", "gesetzlich", oder null wenn nicht erwähnt,
+  "preferredSlots": "Bevorzugte Terminzeit oder 'unbekannt'"
+}
+
+Antworten Sie NUR mit dem JSON-Objekt, ohne zusätzlichen Text.`
+    };
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [extractionPrompt, ...messages],
+      temperature: 0,
+      max_tokens: 200,
+      response_format: { type: 'json_object' }
+    });
+
+    const extracted = JSON.parse(completion.choices[0].message.content);
+    return {
+      name: extracted.name || 'Unbekannt',
+      concern: extracted.concern || 'Telefonische Anfrage',
+      urgency: extracted.urgency || null,
+      insurance: extracted.insurance || null,
+      preferredSlots: extracted.preferredSlots || 'unbekannt'
+    };
+  } catch (err) {
+    console.error('Error extracting lead data:', err);
+    return {
+      name: 'Unbekannt',
+      concern: 'Telefonische Anfrage',
+      urgency: null,
+      insurance: null,
+      preferredSlots: 'unbekannt'
+    };
+  }
 }
 
 async function createLeadFromCall({ 
@@ -775,59 +915,165 @@ app.get('/leads', async (req, res) => {
   }
 });
 
-app.post('/api/twilio/voice/step', (req, res) => {
+// AI-powered Twilio voice entry point
+app.post('/api/twilio/voice/step', async (req, res) => {
+  const callSid = req.body.CallSid;
   const twiml = new VoiceResponse();
+  
+  // Initialize conversation state for new call
+  if (!conversationStates.has(callSid)) {
+    conversationStates.set(callSid, {
+      messages: [],
+      clinicInstructions: await getClinicInstructions()
+    });
+  }
   
   const gather = twiml.gather({
     input: 'speech',
     speechTimeout: 'auto',
     language: 'de-DE',
     action: '/api/twilio/voice/next',
-    method: 'POST'
+    method: 'POST',
+    timeout: 3
   });
   
   gather.say({
     language: 'de-DE',
     voice: 'Polly.Marlene'
-  }, 'Guten Tag, hier ist die digitale Rezeptionsassistenz der Zahnarztpraxis. Wie kann ich Ihnen helfen?');
+  }, 'Guten Tag! Zahnarztpraxis Xhelili, wie kann ich Ihnen helfen?');
   
   res.type('text/xml').send(twiml.toString());
 });
 
+// AI-powered conversation handler
 app.post('/api/twilio/voice/next', async (req, res) => {
+  const callSid = req.body.CallSid;
+  const userSpeech = req.body.SpeechResult || '';
+  const callerPhone = req.body.From || '';
+  
   const twiml = new VoiceResponse();
   
-  twiml.say({
-    language: 'de-DE',
-    voice: 'Polly.Marlene'
-  }, 'Vielen Dank. Ein Mitarbeiter meldet sich bald zurück.');
+  // Get or initialize conversation state
+  let state = conversationStates.get(callSid);
+  if (!state) {
+    state = {
+      messages: [],
+      clinicInstructions: await getClinicInstructions()
+    };
+    conversationStates.set(callSid, state);
+  }
   
-  twiml.hangup();
+  // Add user message to conversation history
+  if (userSpeech) {
+    state.messages.push({
+      role: 'user',
+      content: userSpeech
+    });
+  }
   
-  // Insert lead into Supabase using helper function
-  if (supabase) {
-    try {
-      const lead = await createLeadFromCall({
-        callSid: req.body?.CallSid || null,
-        name: 'Unbekannter Anrufer',
-        phone: req.body?.From || null,
-        concern: 'Telefonische Anfrage',
-        urgency: null,
-        insurance: null,
-        preferredSlotsRaw: 'unbekannt',
-        notes: 'Anruf über Twilio empfangen'
-      });
-      
-      console.log('✅ Lead created:', lead.id);
-    } catch (error) {
-      console.error('Error creating lead from call:', error);
-      // Continue anyway - don't break the Twilio response
+  // Determine if conversation should end (max 4 turns to keep it short)
+  const shouldEnd = state.messages.length >= 8 || 
+                     userSpeech.toLowerCase().includes('danke') ||
+                     userSpeech.toLowerCase().includes('tschüss') ||
+                     userSpeech.toLowerCase().includes('auf wiedersehen');
+  
+  if (shouldEnd) {
+    // Generate final response
+    const finalResponse = await getAIResponse(state.messages, state.clinicInstructions);
+    
+    twiml.say({
+      language: 'de-DE',
+      voice: 'Polly.Marlene'
+    }, finalResponse + ' Auf Wiederhören!');
+    
+    twiml.hangup();
+    
+    // Extract lead data and save to Supabase
+    if (supabase) {
+      try {
+        const extractedData = await extractLeadData(state.messages);
+        
+        const lead = await createLeadFromCall({
+          callSid,
+          name: extractedData.name,
+          phone: callerPhone,
+          concern: extractedData.concern,
+          urgency: extractedData.urgency,
+          insurance: extractedData.insurance,
+          preferredSlotsRaw: extractedData.preferredSlots,
+          notes: `AI-Gespräch mit ${state.messages.length / 2} Interaktionen`
+        });
+        
+        console.log('✅ AI Lead created:', lead.id, extractedData);
+      } catch (error) {
+        console.error('Error creating AI lead:', error);
+      }
     }
+    
+    // Clean up conversation state
+    conversationStates.delete(callSid);
+    
   } else {
-    console.warn('Supabase client not configured; skipping lead insert.');
+    // Continue conversation
+    const aiResponse = await getAIResponse(state.messages, state.clinicInstructions);
+    
+    // Add AI response to conversation history
+    state.messages.push({
+      role: 'assistant',
+      content: aiResponse
+    });
+    
+    // Gather next user input
+    const gather = twiml.gather({
+      input: 'speech',
+      speechTimeout: 'auto',
+      language: 'de-DE',
+      action: '/api/twilio/voice/next',
+      method: 'POST',
+      timeout: 4
+    });
+    
+    gather.say({
+      language: 'de-DE',
+      voice: 'Polly.Marlene'
+    }, aiResponse);
+    
+    // Fallback if user doesn't respond
+    twiml.say({
+      language: 'de-DE',
+      voice: 'Polly.Marlene'
+    }, 'Vielen Dank für Ihren Anruf. Wir melden uns bald. Auf Wiederhören!');
+    
+    twiml.hangup();
   }
   
   res.type('text/xml').send(twiml.toString());
+});
+
+// Test AI response endpoint (for debugging)
+app.post('/debug/test-ai', async (req, res) => {
+  try {
+    const clinicInstructions = await getClinicInstructions();
+    const testMessages = req.body.messages || [
+      { role: 'user', content: 'Ich habe Zahnschmerzen und brauche einen Termin' }
+    ];
+    
+    const response = await getAIResponse(testMessages, clinicInstructions);
+    const extractedData = await extractLeadData(testMessages);
+    
+    res.json({
+      ok: true,
+      aiResponse: response,
+      extractedData,
+      clinicInstructions: clinicInstructions.substring(0, 100) + '...',
+      conversationLength: testMessages.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
 });
 
 // Get leads JSON API

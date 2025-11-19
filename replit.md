@@ -1,30 +1,70 @@
-# AI Receptionist for Dental Clinics
+# Selaro — AI Receptionist for Dental Clinics
 
-A minimal, premium SaaS landing page with mint-green design inspired by Granola.ai.
+Live AI-powered phone receptionist for German dental clinic "Zahnarztpraxis Stela Xhelili – Karli 1 Leipzig"
 
 ## Overview
 
-This is a click-through demo showcasing an AI-powered receptionist service for dental clinics. The application features a calm, professional design with mint-green accents and smooth interactions.
+This application provides a **fully functional AI receptionist** that answers phone calls via Twilio, holds natural German conversations using OpenAI GPT-4, extracts patient information, and automatically creates leads in Supabase. The system uses the clinic's specific instructions from Supabase to personalize responses.
 
 ## Tech Stack
 
-- **Frontend**: React with TypeScript, Tailwind CSS, Wouter (routing)
-- **Backend**: Express.js with TypeScript
-- **Styling**: Shadcn UI components with custom mint-green theme
-- **Storage**: In-memory storage (module-level array)
+- **Backend**: Node.js with Express (ESM modules)
+- **AI**: OpenAI GPT-4o-mini for conversational intelligence
+- **Phone**: Twilio Voice API with German TwiML (Polly.Marlene voice)
+- **Database**: Supabase (PostgreSQL) for lead storage and clinic configuration
+- **Deployment**: Replit → selaro.app
+
+## Environment Variables (Required)
+
+**IMPORTANT: Fix the typo in your environment variables!**
+- ✅ `SUPABASE_SERVICE_ROLE_KEY` - Correct
+- ✅ `OPENAI_API_KEY` - Correct
+- ✅ `CLINIC_ID` - Correct (bc91d95c-a05c-4004-b932-bc393f0391b6)
+- ⚠️ `SUPARBASE_URL` - **TYPO!** Should be `SUPABASE_URL` (add the missing 'B')
+
+The code checks for both spellings as a fallback, but please fix the environment variable name to `SUPABASE_URL` in Replit Secrets.
+
+## AI Receptionist Flow
+
+### 1. Incoming Call → Twilio Webhook
+When a patient calls the dental clinic's Twilio number, Twilio sends a POST request to:
+```
+POST https://selaro.app/api/twilio/voice/step
+```
+
+### 2. AI Conversation Management
+- **Conversation State**: Stored in-memory per `CallSid` with message history
+- **Clinic Instructions**: Fetched from Supabase `clinics` table for clinic ID `bc91d95c-a05c-4004-b932-bc393f0391b6`
+- **OpenAI Integration**: GPT-4o-mini generates natural German responses (max 150 tokens, short and conversational)
+- **Data Collection**: AI gathers name, concern, insurance, and preferred appointment time
+- **Turn Limit**: Max 4 conversation turns (8 messages) to keep calls brief
+
+### 3. Conversation End & Lead Creation
+When the conversation ends (goodbye keywords or max turns), the system:
+1. Extracts structured data using OpenAI with `response_format: json_object`
+2. Saves lead to Supabase `leads` table with:
+   - `call_sid`, `name`, `phone`, `concern`, `urgency`, `insurance`, `preferred_slots`, `notes`, `status`
+3. Cleans up conversation state from memory
+4. Hangs up with a friendly German goodbye
 
 ## API Routes
 
-### GET /
-Root endpoint that returns a simple text message indicating the service is live.
+### Core Routes
 
-**Response:**
-```text
-Selaro — AI Receptionist is live. Use /debug/status to check health.
-```
+#### GET /
+Homepage with information about Selaro AI Receptionist.
 
-### GET /debug/status
-Debug endpoint that returns server status information including uptime and configured port.
+#### GET /leads
+**Dark-themed German dashboard** displaying the last 50 leads from Supabase with:
+- Date, Name, Phone, Concern, Urgency, Insurance, Status
+- "Akut" red tag for urgent cases
+- Green status badges
+- Direct link back to homepage
+
+### Debug & Testing Routes
+
+#### GET /debug/status
+Returns server status information including uptime and configured port.
 
 **Response:**
 ```json
@@ -34,6 +74,44 @@ Debug endpoint that returns server status information including uptime and confi
   "envPort": "5000"
 }
 ```
+
+#### POST /debug/test-ai
+Test the AI conversation logic without Twilio.
+
+**Request Body:**
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Ich habe Zahnschmerzen" }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "aiResponse": "AI's German response",
+  "extractedData": {
+    "name": "Extracted name",
+    "concern": "Extracted concern",
+    "urgency": "urgent" or "normal",
+    "insurance": "privat" or "gesetzlich",
+    "preferredSlots": "Extracted time"
+  },
+  "clinicInstructions": "First 100 chars...",
+  "conversationLength": 1
+}
+```
+
+#### GET /debug/env-keys
+Lists which environment variables are configured (values hidden).
+
+#### POST /debug/create-test-lead
+Creates a test lead in Supabase for testing purposes.
+
+#### GET /debug/list-leads
+Returns the last 10 leads from Supabase in JSON format.
 
 ### POST /api/calls/log
 Logs a new call from the simulation modal.
@@ -86,35 +164,25 @@ Retrieves all logged calls.
 }
 ```
 
-### POST /api/twilio/voice
-Twilio-compatible voice webhook for incoming calls (conversational AI flow).
+### POST /api/twilio/voice/step
+**AI-Powered Twilio Voice Entry Point** - First endpoint called when a patient phones the clinic.
 
 **Content-Type:** `application/x-www-form-urlencoded`
 
 **Request Body (form-encoded):**
+- `CallSid` - Twilio call identifier (required)
 - `From` - Caller's phone number
-- `To` - Receiving phone number
-- `CallSid` - Twilio call identifier
-- `SpeechResult` - (optional) Transcribed speech from caller
 
-**Response:** TwiML XML with German voice message
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say language="de-DE" voice="Polly.Marlene">Danke! Wir melden uns bald zurück.</Say>
-</Response>
-```
+**Behavior:**
+1. Initializes conversation state for the call
+2. Fetches clinic-specific instructions from Supabase `clinics` table
+3. Greets caller: "Guten Tag! Zahnarztpraxis Xhelili, wie kann ich Ihnen helfen?"
+4. Redirects to `/api/twilio/voice/next` for AI conversation
 
-**Call Logging:**
-- Creates a call log with:
-  - name: SpeechResult or "Unknown"
-  - phone: From or "Unknown"
-  - service: "Phone inquiry"
-  - preferredTime: "Call back ASAP"
-  - status: "New"
+**Response:** TwiML XML with German greeting
 
-### POST /api/twilio/voice/step
-Structured step-by-step Twilio voice webhook that collects patient data in a fixed sequence.
+### POST /api/twilio/voice/next
+**AI-Powered Conversation Handler** - Manages multi-turn conversations with OpenAI.
 
 **Content-Type:** `application/x-www-form-urlencoded`
 
@@ -123,32 +191,41 @@ Structured step-by-step Twilio voice webhook that collects patient data in a fix
 - `From` - Caller's phone number
 - `SpeechResult` - (optional) Transcribed speech from caller
 
-**Flow Sequence:**
-1. **Step 0 (Initial)**: Asks for name
-   - Response: "Willkommen in unserer Zahnarztpraxis. Wie ist Ihr Name?"
-2. **Step 1**: After receiving name, asks for concern
-   - Response: "Danke, [Name]. Was führt Sie zu uns? Haben Sie Schmerzen oder wünschen Sie eine spezielle Behandlung?"
-3. **Step 2**: After receiving concern, asks for insurance
-   - Response: "Verstanden. Sind Sie privat oder gesetzlich versichert?"
-4. **Step 3**: After receiving insurance, asks for preferred time
-   - Response: "Wann möchten Sie gerne kommen? Zum Beispiel morgen Vormittag oder übermorgen Nachmittag?"
-5. **Step 4 (Complete)**: After receiving preferred time, saves lead to Supabase and hangs up
-   - Response: "Perfekt! Wir haben alle Informationen. Wir melden uns in Kürze bei Ihnen, um den Termin zu bestätigen. Vielen Dank für Ihren Anruf. Auf Wiederhören!"
+**Behavior:**
+1. **Conversation Management**:
+   - Adds user speech to conversation history
+   - Calls OpenAI GPT-4o-mini for intelligent response
+   - Stores assistant response in history
+   - Limits conversation to max 4 turns (8 messages)
 
-**Lead Capture:**
-- Automatically calls `saveLead()` after step 4 with:
-  - call_sid: CallSid
-  - name: Collected from step 1
-  - phone: From number
-  - concern: Collected from step 2
-  - urgency: "urgent" if concern contains "schmerz", otherwise "normal"
-  - insurance: Collected from step 3
-  - preferred_slots: Collected from step 4
-  - notes: "Erfasst via strukturierter Twilio-Schritt-für-Schritt-Flow"
-  - status: "new"
+2. **Conversation End Triggers**:
+   - Max 8 messages reached
+   - User says goodbye keywords ("danke", "tschüss", "auf wiedersehen")
+
+3. **When Ending**:
+   - Extracts structured data (name, concern, urgency, insurance, preferred time) using OpenAI
+   - Saves lead to Supabase via `createLeadFromCall()`
+   - Says final goodbye in German
+   - Hangs up
+   - Cleans up conversation state
+
+4. **When Continuing**:
+   - Generates AI response using clinic instructions
+   - Gathers next user input
+   - Loops back to this endpoint
+
+**Lead Data Extraction:**
+Uses OpenAI with `response_format: json_object` to extract:
+- `name`: Patient name or "Unbekannt"
+- `concern`: Brief description of issue
+- `urgency`: "urgent" if pain mentioned, otherwise "normal"
+- `insurance`: "privat", "gesetzlich", or null
+- `preferredSlots`: Preferred appointment time or "unbekannt"
 
 **State Management:**
-- Call state is stored in memory per CallSid
+- Conversation state stored in-memory per `CallSid`
+- State includes: message history, clinic instructions
+- State cleaned up after call ends
 - State is automatically deleted after call completion
 
 ### GET /api/health
