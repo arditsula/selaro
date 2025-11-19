@@ -42,51 +42,27 @@ const conversationStates = new Map();
 
 // In-memory clinic cache
 let cachedClinic = null;
-let clinicFetchTime = null;
-const CLINIC_CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 /**
  * Fetch and cache clinic data from Supabase
  * Returns the full clinic object { id, name, phone_number, instructions, created_at }
  */
 async function getClinic() {
-  // Return cached clinic if available and not expired
-  if (cachedClinic && clinicFetchTime && (Date.now() - clinicFetchTime < CLINIC_CACHE_DURATION)) {
-    return cachedClinic;
-  }
+  if (cachedClinic) return cachedClinic;
 
-  if (!supabase) {
-    const error = new Error('Supabase client not configured');
-    console.error('getClinic error:', error);
+  const { data, error } = await supabase
+    .from('clinics')
+    .select('*')
+    .eq('id', process.env.CLINIC_ID)
+    .single();
+
+  if (error) {
+    console.error('Error fetching clinic:', error);
     throw error;
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('clinics')
-      .select('*')
-      .eq('id', CLINIC_ID)
-      .single();
-
-    if (error) {
-      console.error('Error fetching clinic from Supabase:', error);
-      throw new Error(`Supabase error: ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error(`Clinic with ID ${CLINIC_ID} not found`);
-    }
-
-    // Cache the result
-    cachedClinic = data;
-    clinicFetchTime = Date.now();
-    console.log('✅ Clinic loaded and cached:', data.name);
-
-    return data;
-  } catch (err) {
-    console.error('Unexpected error in getClinic():', err);
-    throw err;
-  }
+  cachedClinic = data;
+  return data;
 }
 
 /**
