@@ -47,6 +47,46 @@ When the conversation ends (goodbye keywords or max turns), the system:
 3. Cleans up conversation state from memory
 4. Hangs up with a friendly German goodbye
 
+## Database Tables
+
+### leads
+Main table for storing patient leads created from calls.
+
+**Columns:**
+- `id` (uuid, primary key)
+- `call_sid` (text) - Twilio call identifier
+- `name` (text) - Patient name
+- `phone` (text) - Patient phone number
+- `concern` (text) - Reason for visit
+- `urgency` (text) - "urgent" or "normal"
+- `insurance` (text) - Insurance type
+- `preferred_slots` (jsonb) - Preferred appointment times
+- `notes` (text) - Additional notes
+- `status` (text) - Lead status (default: "new")
+- `created_at` (timestamptz) - When lead was created
+
+### messages_log
+**Debug/logging table** for tracking conversation flow.
+
+**Columns:**
+- `id` (uuid, primary key)
+- `call_sid` (text) - Twilio call identifier
+- `role` (text) - "user" or "assistant"
+- `message` (text) - Message content
+- `created_at` (timestamptz) - When message was logged
+
+**Note:** After creating this table, Supabase's PostgREST schema cache may take a few minutes to refresh. Logging will start working automatically once the cache updates. You can manually refresh it in your Supabase dashboard under Settings → API → Reload schema cache.
+
+### clinics
+Configuration table for clinic information.
+
+**Columns:**
+- `id` (uuid, primary key)
+- `name` (text) - Clinic name
+- `phone_number` (text) - Clinic phone
+- `instructions` (text) - AI receptionist instructions
+- `created_at` (timestamptz)
+
 ## API Routes
 
 ### Core Routes

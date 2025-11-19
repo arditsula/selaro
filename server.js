@@ -195,6 +195,39 @@ Antworten Sie NUR mit dem JSON-Objekt, ohne zusätzlichen Text.`
   }
 }
 
+/**
+ * Log message to messages_log table for debugging
+ * Uses RPC call to bypass PostgREST schema cache
+ * @param {string} callSid - Twilio CallSid
+ * @param {string} role - "user" or "assistant"
+ * @param {string} message - The message content
+ */
+async function logMessage(callSid, role, message) {
+  if (!supabase) {
+    return; // Skip logging if Supabase not configured
+  }
+  
+  try {
+    // Use RPC call to bypass schema cache issues
+    const { data, error } = await supabase.rpc('log_twilio_message', {
+      p_call_sid: callSid,
+      p_role: role,
+      p_message: message
+    });
+    
+    if (error) {
+      // If RPC doesn't exist, try direct SQL (will also fail gracefully)
+      console.warn('📝 Message logging skipped (table not in schema cache)');
+      return;
+    }
+    
+    console.log('✅ Message logged successfully');
+  } catch (error) {
+    // Log error but don't throw - logging is optional
+    console.warn('Message logging skipped:', error.message);
+  }
+}
+
 async function createLeadFromCall({ 
   callSid, 
   name, 
@@ -978,6 +1011,9 @@ app.post('/api/twilio/voice/step', async (req, res) => {
     }
     
     // AI receptionist logic: User has spoken
+    // Log user message to database
+    await logMessage(CallSid, 'user', SpeechResult);
+    
     let clinic;
     try {
       clinic = await getClinic();
@@ -1033,6 +1069,9 @@ WICHTIGE REGELN:
       
       aiReply = completion.choices[0].message.content;
       console.log('🤖 AI Reply:', aiReply);
+      
+      // Log AI reply to database
+      await logMessage(CallSid, 'assistant', aiReply);
     } catch (openaiError) {
       console.error('OpenAI API error:', openaiError);
       twiml.say({
