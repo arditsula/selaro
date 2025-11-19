@@ -473,6 +473,22 @@ app.get('/debug/status', (req, res) => {
   res.json(status);
 });
 
+app.get('/debug/env-keys', (req, res) => {
+  const keys = Object.keys(process.env).sort();
+  const env = {};
+
+  for (const key of keys) {
+    env[key] = !!process.env[key]; // true if env var exists, false if missing
+  }
+
+  res.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    count: keys.length,
+    env,
+  });
+});
+
 app.post('/api/twilio/voice/step', (req, res) => {
   const twiml = new VoiceResponse();
   
