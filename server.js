@@ -493,15 +493,19 @@ app.get('/debug/env-keys', (req, res) => {
 app.post('/debug/create-test-lead', async (req, res) => {
   try {
     const testLead = {
-      full_name: 'Test Lead Selaro',
+      call_sid: 'DEBUG-TEST-' + Date.now(),
+      name: 'Test Lead Selaro',
       phone: '+49123456789',
-      message: 'Ky është një lead test nga /debug/create-test-lead',
-      source: 'debug',
-      created_at: new Date().toISOString()
+      concern: 'Ky është një lead test nga /debug/create-test-lead',
+      urgency: 'normal',
+      insurance: 'Test Insurance',
+      preferred_slots: { raw: 'Test Time Slot' },
+      notes: 'Test lead created via /debug/create-test-lead',
+      status: 'new'
     };
 
     const { data, error } = await supabase
-      .from('leads') // change this if your table name is different
+      .from('leads')
       .insert([testLead])
       .select();
 
