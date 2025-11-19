@@ -525,7 +525,8 @@ app.get('/', (req, res) => {
     </p>
     
     <div class="buttons">
-      <button class="btn btn-primary" onclick="openSimulateModal()">Simulate a Call</button>
+      <a href="/simulate" class="btn btn-primary">Try Simulator</a>
+      <button class="btn btn-secondary" onclick="openSimulateModal()">How It Works</button>
       <button class="btn btn-secondary" onclick="openStatusModal()">System Status</button>
     </div>
   </div>
@@ -676,6 +677,401 @@ app.get('/', (req, res) => {
         closeStatusModal();
       }
     });
+  </script>
+</body>
+</html>
+  `;
+  res.type('html').send(html);
+});
+
+// Simulator page - simple chat-like UI to test the AI receptionist
+app.get('/simulate', (req, res) => {
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selaro – Receptionist Simulator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #f5f7fb 0%, #e8f3f1 100%);
+      color: #1f2937;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: white;
+      padding: 1rem 2rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      color: #111827;
+    }
+    
+    .back-link {
+      color: #00C896;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    
+    .chat-container {
+      flex: 1;
+      max-width: 800px;
+      width: 100%;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 8rem);
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .message {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      max-width: 70%;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .message.receptionist {
+      align-self: flex-start;
+    }
+    
+    .message.caller {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    
+    .message-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    
+    .receptionist .message-avatar {
+      background: #00C896;
+      color: white;
+    }
+    
+    .caller .message-avatar {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .message-bubble {
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+      line-height: 1.5;
+    }
+    
+    .receptionist .message-bubble {
+      background: #f3f4f6;
+      color: #111827;
+      border-bottom-left-radius: 0.25rem;
+    }
+    
+    .caller .message-bubble {
+      background: #3b82f6;
+      color: white;
+      border-bottom-right-radius: 0.25rem;
+    }
+    
+    .chat-input-area {
+      border-top: 1px solid #e5e7eb;
+      padding: 1.5rem;
+      background: #f9fafb;
+      border-bottom-left-radius: 1rem;
+      border-bottom-right-radius: 1rem;
+    }
+    
+    .input-wrapper {
+      display: flex;
+      gap: 0.75rem;
+    }
+    
+    #messageInput {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    #messageInput:focus {
+      border-color: #00C896;
+    }
+    
+    #sendButton {
+      padding: 0.75rem 2rem;
+      background: #00C896;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    #sendButton:hover:not(:disabled) {
+      background: #00b586;
+      transform: translateY(-1px);
+    }
+    
+    #sendButton:disabled {
+      background: #d1d5db;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .loading-indicator {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: #f3f4f6;
+      border-radius: 1rem;
+      max-width: 70%;
+      align-self: flex-start;
+    }
+    
+    .loading-indicator.active {
+      display: flex;
+    }
+    
+    .loading-dots {
+      display: flex;
+      gap: 0.25rem;
+    }
+    
+    .loading-dots span {
+      width: 8px;
+      height: 8px;
+      background: #6b7280;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+    
+    .loading-dots span:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    
+    .loading-dots span:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: scale(0);
+      }
+      40% {
+        transform: scale(1);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .chat-container {
+        margin: 1rem;
+        height: calc(100vh - 6rem);
+        border-radius: 0.5rem;
+      }
+      
+      .header {
+        padding: 1rem;
+      }
+      
+      .header h1 {
+        font-size: 1.25rem;
+      }
+      
+      .message {
+        max-width: 85%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Selaro – Receptionist Simulator</h1>
+    <a href="/" class="back-link">← Back to Home</a>
+  </div>
+  
+  <div class="chat-container">
+    <div id="chatMessages" class="chat-messages">
+      <!-- Messages will be appended here -->
+    </div>
+    
+    <div class="loading-indicator" id="loadingIndicator">
+      <div class="loading-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <span style="color: #6b7280; font-size: 0.875rem;">AI is typing...</span>
+    </div>
+    
+    <div class="chat-input-area">
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          id="messageInput" 
+          placeholder="Type your message in German..." 
+          autocomplete="off"
+        />
+        <button id="sendButton">Send</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const chatMessages = document.getElementById('chatMessages');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    
+    // Initial greeting from the receptionist (same as Twilio route)
+    const initialGreeting = "Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?";
+    
+    // Add a message to the chat
+    function addMessage(text, sender) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = \`message \${sender}\`;
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'message-avatar';
+      avatar.textContent = sender === 'receptionist' ? 'AI' : 'You';
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'message-bubble';
+      bubble.textContent = text;
+      
+      messageDiv.appendChild(avatar);
+      messageDiv.appendChild(bubble);
+      chatMessages.appendChild(messageDiv);
+      
+      // Scroll to bottom
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // Show the initial greeting on page load
+    addMessage(initialGreeting, 'receptionist');
+    
+    // Send message to the AI
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      
+      if (!message) return;
+      
+      // Add user message to chat
+      addMessage(message, 'caller');
+      
+      // Clear input
+      messageInput.value = '';
+      
+      // Disable send button and show loading
+      sendButton.disabled = true;
+      loadingIndicator.classList.add('active');
+      
+      try {
+        // Send POST request to /api/simulate
+        const response = await fetch('/api/simulate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ message })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to get response from AI');
+        }
+        
+        const data = await response.json();
+        
+        // Hide loading
+        loadingIndicator.classList.remove('active');
+        
+        // Add AI reply to chat
+        if (data.reply) {
+          addMessage(data.reply, 'receptionist');
+        } else if (data.error) {
+          addMessage('Es tut mir leid, es ist ein Fehler aufgetreten.', 'receptionist');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        loadingIndicator.classList.remove('active');
+        addMessage('Es tut mir leid, es ist ein technischer Fehler aufgetreten.', 'receptionist');
+      } finally {
+        // Re-enable send button
+        sendButton.disabled = false;
+        messageInput.focus();
+      }
+    }
+    
+    // Send on button click
+    sendButton.addEventListener('click', sendMessage);
+    
+    // Send on Enter key
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !sendButton.disabled) {
+        sendMessage();
+      }
+    });
+    
+    // Focus input on page load
+    messageInput.focus();
   </script>
 </body>
 </html>
