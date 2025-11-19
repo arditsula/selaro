@@ -489,6 +489,63 @@ app.get('/debug/env-keys', (req, res) => {
   });
 });
 
+// Create a test lead in Supabase (debug)
+app.post('/debug/create-test-lead', async (req, res) => {
+  try {
+    const testLead = {
+      full_name: 'Test Lead Selaro',
+      phone: '+49123456789',
+      message: 'Ky është një lead test nga /debug/create-test-lead',
+      source: 'debug',
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('leads') // change this if your table name is different
+      .insert([testLead])
+      .select();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    res.json({
+      ok: true,
+      message: 'Test lead u krijua me sukses 🎉',
+      lead: data[0]
+    });
+  } catch (err) {
+    console.error('Unexpected error creating test lead:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// List last 10 leads from Supabase (debug)
+app.get('/debug/list-leads', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('leads') // change this if your table name is different
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('Supabase select error:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    res.json({
+      ok: true,
+      count: data.length,
+      leads: data
+    });
+  } catch (err) {
+    console.error('Unexpected error listing leads:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.post('/api/twilio/voice/step', (req, res) => {
   const twiml = new VoiceResponse();
   
