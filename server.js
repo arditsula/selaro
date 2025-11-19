@@ -961,126 +961,81 @@ app.get('/leads', async (req, res) => {
 // AI-powered Twilio voice receptionist endpoint
 app.post('/api/twilio/voice/step', async (req, res) => {
   try {
-    const { CallSid, From, SpeechResult } = req.body;
-    const twiml = new VoiceResponse();
+    // Parse standard Twilio fields
+    const speechResult = req.body.SpeechResult;
+    const fromNumber = req.body.From;
+    const callSid = req.body.CallSid;
     
-    // Log incoming request for debugging
-    console.log(`📞 Incoming call - CallSid: ${CallSid}, From: ${From}, SpeechResult: ${SpeechResult || '(none)'}`);
-    
-    // First interaction: No SpeechResult means this is the initial greeting
-    if (!SpeechResult) {
+    // FIRST REQUEST (no SpeechResult)
+    if (!speechResult) {
+      const twiml = new VoiceResponse();
       const gather = twiml.gather({
         input: 'speech',
-        speechTimeout: 'auto',
-        language: 'de-DE',
         action: '/api/twilio/voice/step',
-        method: 'POST',
-        timeout: 5
+        method: 'POST'
       });
       
       gather.say({
-        language: 'de-DE',
-        voice: 'Polly.Marlene'
+        language: 'de-DE'
       }, 'Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?');
       
       return res.type('text/xml').send(twiml.toString());
     }
     
-    // AI receptionist logic: User has spoken
-    // Log user message to database
-    await logMessage(CallSid, 'user', SpeechResult);
+    // SUBSEQUENT REQUESTS (SpeechResult exists)
+    // Use getClinic() to load clinic data
+    const clinic = await getClinic();
     
-    let clinic;
-    try {
-      clinic = await getClinic();
-    } catch (clinicError) {
-      console.error('Failed to fetch clinic:', clinicError);
-      twiml.say({
-        language: 'de-DE',
-        voice: 'Polly.Marlene'
-      }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie die Praxis später noch einmal an.');
-      return res.type('text/xml').send(twiml.toString());
-    }
-    
-    // Build system prompt with clinic information
-    const systemPrompt = {
-      role: 'system',
-      content: `Sie sind eine höfliche, professionelle Rezeptionistin für die Zahnarztpraxis "${clinic.name}".
-
-PRAXISINFORMATIONEN:
+    // Build systemPrompt
+    const systemPrompt = `You are a polite and professional receptionist for a dental clinic in Germany.
+Clinic name: ${clinic.name}.
+Use the following clinic-specific instructions:
 ${clinic.instructions}
 
-WICHTIGE REGELN:
-- Antworten Sie immer auf Deutsch (de-DE), es sei denn, der Anrufer spricht eindeutig eine andere Sprache.
-- Halten Sie Ihre Antworten kurz, klar und freundlich (maximal 2-3 Sätze).
-- Wenn der Anrufer einen Termin möchte, sammeln Sie folgende Informationen:
-  1) Vollständiger Name
-  2) Telefonnummer
-  3) Grund für den Besuch (Zahnschmerzen, Kontrolle, Zahnreinigung, Implantat-Beratung, etc.)
-  4) Bevorzugte Tage und Uhrzeiten innerhalb der Praxisöffnungszeiten
-- Versprechen Sie keine genauen Preise. Sagen Sie, dass diese vom Befund abhängen und in der Praxis geklärt werden können.
-- Am Ende des Gesprächs sagen Sie, dass das Praxisteam die Daten prüft und sich zur Terminbestätigung meldet.
-- Seien Sie empathisch, besonders wenn der Anrufer Schmerzen erwähnt.`
-    };
+Rules:
+- Always answer in German (de-DE).
+- Keep answers short and friendly.
+- If the caller wants an appointment, ask for:
+  1) full name
+  2) phone number
+  3) reason for the visit
+  4) preferred days/times
+- Never give exact prices.
+- At the end say the team will call back to confirm.`;
     
-    // Build user message
-    const userMessage = {
-      role: 'user',
-      content: SpeechResult
-    };
+    // Call OpenAI
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Note: gpt-4.1-mini doesn't exist, using gpt-4o-mini
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: speechResult }
+      ]
+    });
     
-    // Call OpenAI for AI response
-    let aiReply;
-    try {
-      if (!openai) {
-        throw new Error('OpenAI client not configured');
-      }
-      
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Using gpt-4o-mini (gpt-4.1-mini doesn't exist)
-        messages: [systemPrompt, userMessage],
-        temperature: 0.7,
-        max_tokens: 150
-      });
-      
-      aiReply = completion.choices[0].message.content;
-      console.log('🤖 AI Reply:', aiReply);
-      
-      // Log AI reply to database
-      await logMessage(CallSid, 'assistant', aiReply);
-    } catch (openaiError) {
-      console.error('OpenAI API error:', openaiError);
-      twiml.say({
-        language: 'de-DE',
-        voice: 'Polly.Marlene'
-      }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie die Praxis später noch einmal an.');
-      return res.type('text/xml').send(twiml.toString());
-    }
+    // Extract AI reply
+    const aiReply = completion.choices[0].message.content;
     
-    // Return AI response and continue conversation loop
+    // Respond with TwiML
+    const twiml = new VoiceResponse();
     const gather = twiml.gather({
       input: 'speech',
-      speechTimeout: 'auto',
-      language: 'de-DE',
       action: '/api/twilio/voice/step',
-      method: 'POST',
-      timeout: 5
+      method: 'POST'
     });
     
     gather.say({
-      language: 'de-DE',
-      voice: 'Polly.Marlene'
+      language: 'de-DE'
     }, aiReply);
     
     res.type('text/xml').send(twiml.toString());
     
   } catch (error) {
-    console.error('Unexpected error in /api/twilio/voice/step:', error);
+    // ERROR HANDLING
+    console.error('Error in /api/twilio/voice/step:', error);
     const twiml = new VoiceResponse();
     twiml.say({
-      language: 'de-DE',
-      voice: 'Polly.Marlene'
-    }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie die Praxis später noch einmal an.');
+      language: 'de-DE'
+    }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie später noch einmal an.');
     res.type('text/xml').send(twiml.toString());
   }
 });
