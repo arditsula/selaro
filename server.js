@@ -493,15 +493,9 @@ app.get('/debug/env-keys', (req, res) => {
 app.post('/debug/create-test-lead', async (req, res) => {
   try {
     const testLead = {
-      call_sid: 'DEBUG-TEST-' + Date.now(),
       name: 'Test Lead Selaro',
       phone: '+49123456789',
-      concern: 'Ky është një lead test nga /debug/create-test-lead',
-      urgency: 'normal',
-      insurance: 'Test Insurance',
-      preferred_slots: { raw: 'Test Time Slot' },
-      notes: 'Test lead created via /debug/create-test-lead',
-      status: 'new'
+      notes: 'Ky është një lead test nga /debug/create-test-lead'
     };
 
     const { data, error } = await supabase
