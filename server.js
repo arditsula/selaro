@@ -525,7 +525,7 @@ app.get('/', (req, res) => {
     </p>
     
     <div class="buttons">
-      <a href="/simulate" class="btn btn-primary">Try Receptionist Demo</a>
+      <a href="/simulator" class="btn btn-primary">Try Receptionist Demo</a>
       <button class="btn btn-secondary" onclick="openSimulateModal()">How It Works</button>
       <button class="btn btn-secondary" onclick="openStatusModal()">System Status</button>
     </div>
@@ -684,8 +684,14 @@ app.get('/', (req, res) => {
   res.type('html').send(html);
 });
 
-// Simulator page - simple chat-like UI to test the AI receptionist
+// Redirect old /simulate URL to new /simulator URL (avoid CDN cache)
 app.get('/simulate', (req, res) => {
+  res.redirect(301, '/simulator');
+});
+
+// Simulator page - simple chat-like UI to test the AI receptionist
+app.get('/simulator', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   const html = `
 <!DOCTYPE html>
 <html lang="en">
