@@ -586,6 +586,195 @@ app.get('/debug/list-leads', async (req, res) => {
   }
 });
 
+
+// Leads dashboard HTML (dark theme, German)
+app.get('/leads', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching leads:', error);
+      return res
+        .status(500)
+        .type('html')
+        .send('<h1>Fehler beim Laden der Leads</h1><p>' + error.message + '</p>');
+    }
+
+    let html = `
+      <!DOCTYPE html>
+      <html lang="de">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Selaro – Leads</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #0b1120;
+            color: #e5e7eb;
+            margin: 0;
+            padding: 2rem;
+          }
+          h1 {
+            margin-bottom: 1rem;
+          }
+          .subtitle {
+            color: #9ca3af;
+            margin-bottom: 1.5rem;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #020617;
+            border-radius: 0.75rem;
+            overflow: hidden;
+          }
+          thead {
+            background: #111827;
+          }
+          th, td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #1f2937;
+            font-size: 0.875rem;
+            text-align: left;
+            vertical-align: top;
+          }
+          th {
+            font-weight: 600;
+            color: #9ca3af;
+          }
+          tr:last-child td {
+            border-bottom: none;
+          }
+          .tag {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            background: #1f2937;
+            color: #e5e7eb;
+          }
+          .tag-urgent {
+            background: #7f1d1d;
+            color: #fecaca;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            background: #064e3b;
+            color: #a7f3d0;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+          }
+          .empty-state {
+            padding: 2rem;
+            text-align: center;
+            color: #6b7280;
+          }
+          .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+          }
+          .toolbar a {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.875rem;
+          }
+          .toolbar a:hover {
+            text-decoration: underline;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar">
+          <div>
+            <h1>Selaro – Leads</h1>
+            <div class="subtitle">
+              Letzte eingegangene Anfragen (Telefon-Leads)
+            </div>
+          </div>
+          <div>
+            <a href="/">Zurück zur Startseite</a>
+          </div>
+        </div>
+    `;
+
+    if (!data || data.length === 0) {
+      html += `
+        <div class="empty-state">
+          <p>Noch keine Leads vorhanden.</p>
+        </div>
+      `;
+    } else {
+      html += `<table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Name</th>
+            <th>Telefon</th>
+            <th>Anliegen</th>
+            <th>Dringlichkeit</th>
+            <th>Versicherung</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+      `;
+
+      for (const lead of data) {
+        const createdAt = lead.created_at
+          ? new Date(lead.created_at).toLocaleString('de-DE')
+          : '';
+        const urgencyTag = lead.urgency === 'urgent'
+          ? '<span class="tag tag-urgent">Akut</span>'
+          : (lead.urgency
+                ? '<span class="tag">' + lead.urgency + '</span>'
+                : '');
+        const insurance = lead.insurance || '';
+        const concern = lead.concern || '';
+        const statusBadge = '<span class="status-badge">' + (lead.status || 'new') + '</span>';
+
+        html += `
+          <tr>
+            <td>${createdAt}</td>
+            <td>${lead.name || ''}</td>
+            <td>${lead.phone || ''}</td>
+            <td>${concern}</td>
+            <td>${urgencyTag}</td>
+            <td>${insurance}</td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
+      }
+
+      html += `
+        </tbody>
+      </table>
+      `;
+    }
+
+    html += `
+      </body>
+      </html>
+    `;
+
+    res.type('html').send(html);
+  } catch (err) {
+    console.error('Unexpected error in /leads:', err);
+    res
+      .status(500)
+      .type('html')
+      .send('<h1>Interner Fehler</h1><p>' + err.message + '</p>');
+  }
+});
+
 app.post('/api/twilio/voice/step', (req, res) => {
   const twiml = new VoiceResponse();
   
@@ -651,7 +840,7 @@ app.get('/api/leads', async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('leads')
       .select('*')
       .order('created_at', { ascending: false })
@@ -674,273 +863,6 @@ app.get('/api/leads', async (req, res) => {
       error: err.message
     });
   }
-});
-
-// Leads dashboard HTML
-app.get('/leads', (req, res) => {
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Selaro — Leads</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: linear-gradient(135deg, #f5f7fb 0%, #e8f3f1 100%);
-      color: #1f2937;
-      line-height: 1.6;
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: #111827;
-      text-align: center;
-    }
-    
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-    
-    .btn {
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      font-weight: 600;
-      border-radius: 0.5rem;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-      display: inline-block;
-    }
-    
-    .btn-primary {
-      background: #00C896;
-      color: white;
-      box-shadow: 0 2px 4px rgba(0, 200, 150, 0.3);
-    }
-    
-    .btn-primary:hover {
-      background: #00b586;
-      transform: translateY(-1px);
-    }
-    
-    .btn-secondary {
-      background: white;
-      color: #00C896;
-      border: 2px solid #00C896;
-    }
-    
-    .btn-secondary:hover {
-      background: #f0fdf9;
-    }
-    
-    .card {
-      background: white;
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      margin-bottom: 2rem;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    th {
-      background: #f9fafb;
-      padding: 0.75rem;
-      text-align: left;
-      font-weight: 600;
-      color: #374151;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    td {
-      padding: 0.75rem;
-      border-bottom: 1px solid #e5e7eb;
-      color: #4b5563;
-    }
-    
-    tr:hover {
-      background: #f9fafb;
-    }
-    
-    .badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 0.25rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-    
-    .badge-phone {
-      background: #dbeafe;
-      color: #1e40af;
-    }
-    
-    .badge-web {
-      background: #dcfce7;
-      color: #166534;
-    }
-    
-    .error-box {
-      background: #fee2e2;
-      border: 1px solid #fca5a5;
-      color: #991b1b;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: #6b7280;
-    }
-    
-    .loading {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: #6b7280;
-    }
-    
-    @media (max-width: 768px) {
-      h1 {
-        font-size: 2rem;
-      }
-      
-      table {
-        font-size: 0.875rem;
-      }
-      
-      th, td {
-        padding: 0.5rem;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Recent Leads</h1>
-    
-    <div class="header">
-      <a href="/" class="btn btn-secondary">← Back to Home</a>
-      <button class="btn btn-primary" onclick="loadLeads()">🔄 Refresh</button>
-    </div>
-    
-    <div class="card">
-      <div id="content" class="loading">
-        Loading leads...
-      </div>
-    </div>
-  </div>
-  
-  <script>
-    async function loadLeads() {
-      const content = document.getElementById('content');
-      content.innerHTML = '<div class="loading">Loading leads...</div>';
-      
-      try {
-        const response = await fetch('/api/leads');
-        const result = await response.json();
-        
-        if (!result.ok) {
-          content.innerHTML = \`
-            <div class="error-box">
-              <strong>Error:</strong> \${result.error || 'Failed to load leads'}
-            </div>
-          \`;
-          return;
-        }
-        
-        const leads = result.data || [];
-        
-        if (leads.length === 0) {
-          content.innerHTML = \`
-            <div class="empty-state">
-              <h3>No leads yet</h3>
-              <p>Leads will appear here when patients call via Twilio.</p>
-            </div>
-          \`;
-          return;
-        }
-        
-        let html = \`
-          <table>
-            <thead>
-              <tr>
-                <th>Created At</th>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Reason</th>
-                <th>Preferred Time</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-        \`;
-        
-        leads.forEach(lead => {
-          const createdAt = new Date(lead.created_at).toLocaleString();
-          const badgeClass = lead.source === 'phone' ? 'badge-phone' : 'badge-web';
-          
-          html += \`
-            <tr>
-              <td>\${createdAt}</td>
-              <td>\${lead.name || 'N/A'}</td>
-              <td>\${lead.phone || 'N/A'}</td>
-              <td>\${lead.reason || 'N/A'}</td>
-              <td>\${lead.preferred_time || 'N/A'}</td>
-              <td><span class="badge \${badgeClass}">\${lead.source || 'unknown'}</span></td>
-            </tr>
-          \`;
-        });
-        
-        html += \`
-            </tbody>
-          </table>
-        \`;
-        
-        content.innerHTML = html;
-      } catch (error) {
-        content.innerHTML = \`
-          <div class="error-box">
-            <strong>Error:</strong> \${error.message}
-          </div>
-        \`;
-      }
-    }
-    
-    // Load leads on page load
-    loadLeads();
-  </script>
-</body>
-</html>
-  `;
-  res.type('html').send(html);
 });
 
 const PORT = process.env.PORT || 5000;
