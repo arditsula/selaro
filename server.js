@@ -615,24 +615,24 @@ app.post('/api/twilio/voice/next', async (req, res) => {
   
   twiml.hangup();
   
-  // Insert lead into Supabase
+  // Insert lead into Supabase using helper function
   if (supabase) {
-    const { error } = await supabase
-      .from('leads')
-      .insert([
-        {
-          name: 'Unbekannter Anrufer',
-          phone: req.body?.Caller || null,
-          reason: 'Telefonische Anfrage',
-          preferred_time: 'unbekannt',
-          source: 'phone'
-        }
-      ]);
-    
-    if (error) {
-      console.error('Error inserting lead:', error);
-    } else {
-      console.log('✅ Lead inserted:', req.body?.Caller || 'Unknown');
+    try {
+      const lead = await createLeadFromCall({
+        callSid: req.body?.CallSid || null,
+        name: 'Unbekannter Anrufer',
+        phone: req.body?.From || null,
+        concern: 'Telefonische Anfrage',
+        urgency: null,
+        insurance: null,
+        preferredSlotsRaw: 'unbekannt',
+        notes: 'Anruf über Twilio empfangen'
+      });
+      
+      console.log('✅ Lead created:', lead.id);
+    } catch (error) {
+      console.error('Error creating lead from call:', error);
+      // Continue anyway - don't break the Twilio response
     }
   } else {
     console.warn('Supabase client not configured; skipping lead insert.');
