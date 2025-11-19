@@ -1,5 +1,5 @@
 run = "node server.js"
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "web", "postgresql-16"]
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
@@ -8,10 +8,6 @@ channel = "stable-24_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 38785
-externalPort = 3000
 
 [env]
 PORT = "5000"
