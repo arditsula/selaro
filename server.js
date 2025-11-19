@@ -1040,6 +1040,57 @@ Rules:
   }
 });
 
+// JSON simulator endpoint - uses the SAME AI receptionist logic as Twilio route
+app.post('/api/simulate', async (req, res) => {
+  try {
+    // Expect JSON body: { "message": "some user input text" }
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Missing "message" field in request body' });
+    }
+    
+    // Use the same getClinic() helper
+    const clinic = await getClinic();
+    
+    // Build the SAME system prompt logic as the Twilio route
+    const systemPrompt = `You are a polite and professional receptionist for a dental clinic in Germany.
+Clinic name: ${clinic.name}.
+Use the following clinic-specific instructions:
+${clinic.instructions}
+
+Rules:
+- Always answer in German (de-DE).
+- Keep answers short and friendly.
+- If the caller wants an appointment, ask for:
+  1) full name
+  2) phone number
+  3) reason for the visit
+  4) preferred days/times
+- Never give exact prices.
+- At the end say the team will call back to confirm.`;
+    
+    // Call OpenAI with the same logic
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Note: gpt-4.1-mini doesn't exist, using gpt-4o-mini
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ]
+    });
+    
+    // Extract AI reply
+    const reply = completion.choices[0].message.content;
+    
+    // Return JSON response
+    res.json({ reply });
+    
+  } catch (error) {
+    console.error('Error in /api/simulate:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // AI-powered conversation handler
 app.post('/api/twilio/voice/next', async (req, res) => {
   const callSid = req.body.CallSid;
