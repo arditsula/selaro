@@ -525,7 +525,7 @@ app.get('/', (req, res) => {
     </p>
     
     <div class="buttons">
-      <a href="/simulator" class="btn btn-primary">Try Receptionist Demo</a>
+      <a href="/simulate" class="btn btn-primary">Try Receptionist Demo</a>
       <button class="btn btn-secondary" onclick="openSimulateModal()">How It Works</button>
       <button class="btn btn-secondary" onclick="openStatusModal()">System Status</button>
     </div>
@@ -684,12 +684,74 @@ app.get('/', (req, res) => {
   res.type('html').send(html);
 });
 
-// Redirect old /simulate URL to new /simulator URL (avoid CDN cache)
+// Simulator page - simple chat UI to test the AI receptionist
 app.get('/simulate', (req, res) => {
-  res.redirect(301, '/simulator');
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Selaro – Receptionist Simulator</title>
+      <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+        .chat { border: 1px solid #ddd; border-radius: 8px; padding: 12px; height: 400px; overflow-y: auto; margin-bottom: 12px; }
+        .msg { margin: 6px 0; padding: 8px 10px; border-radius: 6px; max-width: 80%; }
+        .ai { background: #f2f2f2; text-align: left; }
+        .user { background: #dff0ff; margin-left: auto; text-align: right; }
+        .row { display: flex; gap: 8px; }
+        input[type="text"] { flex: 1; padding: 8px; }
+        button { padding: 8px 12px; }
+      </style>
+    </head>
+    <body>
+      <h1>Selaro – Receptionist Simulator</h1>
+      <div class="chat" id="chat"></div>
+      <form class="row" id="form">
+        <input type="text" id="input" placeholder="Schreiben Sie hier..." autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+
+      <script>
+        const chat = document.getElementById('chat');
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+
+        function addMessage(text, role) {
+          const div = document.createElement('div');
+          div.className = 'msg ' + (role === 'ai' ? 'ai' : 'user');
+          div.textContent = text;
+          chat.appendChild(div);
+          chat.scrollTop = chat.scrollHeight;
+        }
+
+        // First greeting
+        addMessage('Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?', 'ai');
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const text = input.value.trim();
+          if (!text) return;
+          addMessage(text, 'user');
+          input.value = '';
+          try {
+            const res = await fetch('/api/simulate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: text })
+            });
+            const data = await res.json();
+            addMessage(data.reply || 'Fehler: Keine Antwort vom Server.', 'ai');
+          } catch (err) {
+            addMessage('Es ist ein Fehler aufgetreten.', 'ai');
+          }
+        });
+      </script>
+    </body>
+    </html>
+  `);
 });
 
-// Simulator page - simple chat-like UI to test the AI receptionist
+// Alternative simulator route (in case of CDN caching issues)
 app.get('/simulator', (req, res) => {
   res.set('Cache-Control', 'no-store');
   const html = `
