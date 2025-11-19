@@ -21,6 +21,48 @@ if (!supabase) {
   console.log('✅ Supabase client configured successfully');
 }
 
+async function createLeadFromCall({ 
+  callSid, 
+  name, 
+  phone, 
+  concern, 
+  urgency, 
+  insurance, 
+  preferredSlotsRaw, 
+  notes 
+}) {
+  try {
+    const lead = {
+      call_sid: callSid ?? null,
+      name,
+      phone,
+      concern: concern ?? null,
+      urgency: urgency ?? null,
+      insurance: insurance ?? null,
+      preferred_slots: preferredSlotsRaw 
+        ? { raw: preferredSlotsRaw } 
+        : null,
+      notes: notes ?? null,
+      status: 'new'
+    };
+
+    const { data, error } = await supabase
+      .from('leads')
+      .insert([lead])
+      .select();
+
+    if (error) {
+      console.error('Supabase lead insert error:', error);
+      throw error;
+    }
+
+    return data[0];
+  } catch (err) {
+    console.error('Unexpected error creating lead from call:', err);
+    throw err;
+  }
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
