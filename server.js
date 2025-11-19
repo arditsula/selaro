@@ -525,7 +525,7 @@ app.get('/', (req, res) => {
     </p>
     
     <div class="buttons">
-      <a href="/simulate" class="btn btn-primary">Try Simulator</a>
+      <a href="/simulate" class="btn btn-primary">Try Receptionist Demo</a>
       <button class="btn btn-secondary" onclick="openSimulateModal()">How It Works</button>
       <button class="btn btn-secondary" onclick="openStatusModal()">System Status</button>
     </div>
