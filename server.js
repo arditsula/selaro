@@ -40,30 +40,64 @@ const CLINIC_ID = process.env.CLINIC_ID || 'bc91d95c-a05c-4004-b932-bc393f0391b6
 // Key: CallSid, Value: { messages: [], extractedData: {} }
 const conversationStates = new Map();
 
+// In-memory clinic cache
+let cachedClinic = null;
+let clinicFetchTime = null;
+const CLINIC_CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+
 /**
- * Fetch clinic instructions from Supabase
+ * Fetch and cache clinic data from Supabase
+ * Returns the full clinic object { id, name, phone_number, instructions, created_at }
  */
-async function getClinicInstructions() {
+async function getClinic() {
+  // Return cached clinic if available and not expired
+  if (cachedClinic && clinicFetchTime && (Date.now() - clinicFetchTime < CLINIC_CACHE_DURATION)) {
+    return cachedClinic;
+  }
+
   if (!supabase) {
-    console.warn('Supabase not configured, using default instructions');
-    return 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+    const error = new Error('Supabase client not configured');
+    console.error('getClinic error:', error);
+    throw error;
   }
 
   try {
     const { data, error } = await supabase
       .from('clinics')
-      .select('instructions')
+      .select('*')
       .eq('id', CLINIC_ID)
       .single();
 
     if (error) {
-      console.error('Error fetching clinic instructions:', error);
-      return 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+      console.error('Error fetching clinic from Supabase:', error);
+      throw new Error(`Supabase error: ${error.message}`);
     }
 
-    return data?.instructions || 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+    if (!data) {
+      throw new Error(`Clinic with ID ${CLINIC_ID} not found`);
+    }
+
+    // Cache the result
+    cachedClinic = data;
+    clinicFetchTime = Date.now();
+    console.log('✅ Clinic loaded and cached:', data.name);
+
+    return data;
   } catch (err) {
-    console.error('Unexpected error fetching clinic instructions:', err);
+    console.error('Unexpected error in getClinic():', err);
+    throw err;
+  }
+}
+
+/**
+ * Fetch clinic instructions from Supabase (legacy function, kept for compatibility)
+ */
+async function getClinicInstructions() {
+  try {
+    const clinic = await getClinic();
+    return clinic.instructions || 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
+  } catch (err) {
+    console.error('Error fetching clinic instructions:', err);
     return 'Sie sind eine freundliche Rezeptionistin für eine Zahnarztpraxis in Leipzig.';
   }
 }
@@ -915,34 +949,125 @@ app.get('/leads', async (req, res) => {
   }
 });
 
-// AI-powered Twilio voice entry point
+// AI-powered Twilio voice receptionist endpoint
 app.post('/api/twilio/voice/step', async (req, res) => {
-  const callSid = req.body.CallSid;
-  const twiml = new VoiceResponse();
-  
-  // Initialize conversation state for new call
-  if (!conversationStates.has(callSid)) {
-    conversationStates.set(callSid, {
-      messages: [],
-      clinicInstructions: await getClinicInstructions()
+  try {
+    const { CallSid, From, SpeechResult } = req.body;
+    const twiml = new VoiceResponse();
+    
+    // Log incoming request for debugging
+    console.log(`📞 Incoming call - CallSid: ${CallSid}, From: ${From}, SpeechResult: ${SpeechResult || '(none)'}`);
+    
+    // First interaction: No SpeechResult means this is the initial greeting
+    if (!SpeechResult) {
+      const gather = twiml.gather({
+        input: 'speech',
+        speechTimeout: 'auto',
+        language: 'de-DE',
+        action: '/api/twilio/voice/step',
+        method: 'POST',
+        timeout: 5
+      });
+      
+      gather.say({
+        language: 'de-DE',
+        voice: 'Polly.Marlene'
+      }, 'Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?');
+      
+      return res.type('text/xml').send(twiml.toString());
+    }
+    
+    // AI receptionist logic: User has spoken
+    let clinic;
+    try {
+      clinic = await getClinic();
+    } catch (clinicError) {
+      console.error('Failed to fetch clinic:', clinicError);
+      twiml.say({
+        language: 'de-DE',
+        voice: 'Polly.Marlene'
+      }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie die Praxis später noch einmal an.');
+      return res.type('text/xml').send(twiml.toString());
+    }
+    
+    // Build system prompt with clinic information
+    const systemPrompt = {
+      role: 'system',
+      content: `Sie sind eine höfliche, professionelle Rezeptionistin für die Zahnarztpraxis "${clinic.name}".
+
+PRAXISINFORMATIONEN:
+${clinic.instructions}
+
+WICHTIGE REGELN:
+- Antworten Sie immer auf Deutsch (de-DE), es sei denn, der Anrufer spricht eindeutig eine andere Sprache.
+- Halten Sie Ihre Antworten kurz, klar und freundlich (maximal 2-3 Sätze).
+- Wenn der Anrufer einen Termin möchte, sammeln Sie folgende Informationen:
+  1) Vollständiger Name
+  2) Telefonnummer
+  3) Grund für den Besuch (Zahnschmerzen, Kontrolle, Zahnreinigung, Implantat-Beratung, etc.)
+  4) Bevorzugte Tage und Uhrzeiten innerhalb der Praxisöffnungszeiten
+- Versprechen Sie keine genauen Preise. Sagen Sie, dass diese vom Befund abhängen und in der Praxis geklärt werden können.
+- Am Ende des Gesprächs sagen Sie, dass das Praxisteam die Daten prüft und sich zur Terminbestätigung meldet.
+- Seien Sie empathisch, besonders wenn der Anrufer Schmerzen erwähnt.`
+    };
+    
+    // Build user message
+    const userMessage = {
+      role: 'user',
+      content: SpeechResult
+    };
+    
+    // Call OpenAI for AI response
+    let aiReply;
+    try {
+      if (!openai) {
+        throw new Error('OpenAI client not configured');
+      }
+      
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini', // Using gpt-4o-mini (gpt-4.1-mini doesn't exist)
+        messages: [systemPrompt, userMessage],
+        temperature: 0.7,
+        max_tokens: 150
+      });
+      
+      aiReply = completion.choices[0].message.content;
+      console.log('🤖 AI Reply:', aiReply);
+    } catch (openaiError) {
+      console.error('OpenAI API error:', openaiError);
+      twiml.say({
+        language: 'de-DE',
+        voice: 'Polly.Marlene'
+      }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie die Praxis später noch einmal an.');
+      return res.type('text/xml').send(twiml.toString());
+    }
+    
+    // Return AI response and continue conversation loop
+    const gather = twiml.gather({
+      input: 'speech',
+      speechTimeout: 'auto',
+      language: 'de-DE',
+      action: '/api/twilio/voice/step',
+      method: 'POST',
+      timeout: 5
     });
+    
+    gather.say({
+      language: 'de-DE',
+      voice: 'Polly.Marlene'
+    }, aiReply);
+    
+    res.type('text/xml').send(twiml.toString());
+    
+  } catch (error) {
+    console.error('Unexpected error in /api/twilio/voice/step:', error);
+    const twiml = new VoiceResponse();
+    twiml.say({
+      language: 'de-DE',
+      voice: 'Polly.Marlene'
+    }, 'Es ist ein technischer Fehler aufgetreten. Bitte rufen Sie die Praxis später noch einmal an.');
+    res.type('text/xml').send(twiml.toString());
   }
-  
-  const gather = twiml.gather({
-    input: 'speech',
-    speechTimeout: 'auto',
-    language: 'de-DE',
-    action: '/api/twilio/voice/next',
-    method: 'POST',
-    timeout: 3
-  });
-  
-  gather.say({
-    language: 'de-DE',
-    voice: 'Polly.Marlene'
-  }, 'Guten Tag! Zahnarztpraxis Xhelili, wie kann ich Ihnen helfen?');
-  
-  res.type('text/xml').send(twiml.toString());
 });
 
 // AI-powered conversation handler
