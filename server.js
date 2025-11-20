@@ -3,6 +3,7 @@ import cors from 'cors';
 import twilio from 'twilio';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import nodemailer from 'nodemailer';
 
 const app = express();
 const VoiceResponse = twilio.twiml.VoiceResponse;
@@ -31,6 +32,25 @@ if (!openai) {
   console.warn('⚠️  OpenAI client not configured - OPENAI_API_KEY missing');
 } else {
   console.log('✅ OpenAI client configured successfully');
+}
+
+// Nodemailer setup
+const emailTransporter = (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS)
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: parseInt(process.env.SMTP_PORT) === 465, // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    })
+  : null;
+
+if (!emailTransporter) {
+  console.warn('⚠️  Email transporter not configured - SMTP_HOST, SMTP_PORT, SMTP_USER, or SMTP_PASS missing');
+} else {
+  console.log('✅ Email transporter configured successfully');
 }
 
 // Clinic ID from environment
@@ -341,6 +361,118 @@ function classifyUrgency(reason, fullText) {
 }
 
 /**
+ * Send email notification to clinic when a new lead is saved
+ * @param {Object} lead - Lead data with name, phone, concern, urgency, preferred_slots, source, etc.
+ */
+async function sendLeadNotification(lead) {
+  // Skip if email transporter is not configured
+  if (!emailTransporter) {
+    console.warn('⚠️  Email notification skipped - SMTP not configured');
+    return;
+  }
+
+  const clinicEmail = process.env.CLINIC_NOTIFICATION_EMAIL;
+  if (!clinicEmail) {
+    console.warn('⚠️  Email notification skipped - CLINIC_NOTIFICATION_EMAIL not set');
+    return;
+  }
+
+  try {
+    // Format the preferred time/slots
+    const preferredTime = lead.preferred_slots?.raw || 'Nicht angegeben';
+    
+    // Determine source display
+    const sourceDisplay = lead.source === 'twilio' ? 'Telefonanruf' : 
+                         lead.source === 'simulate' ? 'Web-Simulator' : 
+                         lead.source || 'Unbekannt';
+    
+    // Determine urgency display
+    const urgencyDisplay = lead.urgency === 'akut' ? '🔴 AKUT' : 'Normal';
+    
+    // Build email subject
+    const subject = `Neuer Patientenanruf über Selaro – ${lead.concern || 'Zahnbehandlung'}`;
+    
+    // Build email body (German)
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #00C896;">Neuer Lead von der AI-Telefonassistenz</h2>
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Name:</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${lead.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Telefonnummer:</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${lead.phone}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Grund:</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${lead.concern || 'Nicht angegeben'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Dringlichkeit:</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${urgencyDisplay}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Wunschtermin:</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${preferredTime}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Quelle:</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${sourceDisplay}</td>
+          </tr>
+        </table>
+        
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #374151;">
+            <strong>Bitte kontaktieren Sie den Patienten zur Terminbestätigung.</strong>
+          </p>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
+          Diese E-Mail wurde automatisch von Selaro generiert.
+        </p>
+      </div>
+    `;
+    
+    // Plain text version
+    const text = `
+Neuer Lead von der AI-Telefonassistenz
+
+Name: ${lead.name}
+Telefonnummer: ${lead.phone}
+Grund: ${lead.concern || 'Nicht angegeben'}
+Dringlichkeit: ${urgencyDisplay}
+Wunschtermin: ${preferredTime}
+Quelle: ${sourceDisplay}
+
+Bitte kontaktieren Sie den Patienten zur Terminbestätigung.
+
+---
+Diese E-Mail wurde automatisch von Selaro generiert.
+    `.trim();
+    
+    // Send email
+    const info = await emailTransporter.sendMail({
+      from: `"Selaro AI Receptionist" <${process.env.SMTP_USER}>`,
+      to: clinicEmail,
+      subject: subject,
+      text: text,
+      html: html
+    });
+    
+    console.log('✅ Email notification sent successfully:', info.messageId);
+    return info;
+    
+  } catch (error) {
+    console.error('❌ Error sending email notification:', error);
+    // Don't throw - we don't want to break lead saving if email fails
+    return null;
+  }
+}
+
+/**
  * Save lead to Supabase - only when all required fields are present
  */
 async function saveLead({ name, phone, reason, preferredTime, urgency, requestedTime, source, rawText, callSid }) {
@@ -389,8 +521,13 @@ async function saveLead({ name, phone, reason, preferredTime, urgency, requested
       throw error;
     }
 
-    console.log('✅ Lead saved successfully! ID:', data[0]?.id);
-    return data[0];
+    const savedLead = data[0];
+    console.log('✅ Lead saved successfully! ID:', savedLead?.id);
+    
+    // Send email notification to clinic
+    await sendLeadNotification(savedLead);
+    
+    return savedLead;
   } catch (error) {
     console.error('❌ Error saving lead:', error);
     // Don't throw - we don't want to crash the call
