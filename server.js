@@ -262,7 +262,7 @@ async function extractLeadFieldsFromText(text) {
 - full name (patient's complete name)
 - phone number (with country code if present)
 - reason for visit (brief description of dental issue)
-- preferred time/date (when patient wants appointment)
+- preferred time/date (when patient wants appointment, formatted as human-readable like "morgen 15:00" or "nächste Woche Nachmittag")
 
 If a field is not mentioned or unclear, return null for that field.
 
@@ -309,9 +309,41 @@ ${text}`;
 }
 
 /**
+ * Classify urgency based on pain indicators in German text
+ * Returns 'akut' for urgent cases, 'normal' otherwise
+ */
+function classifyUrgency(reason, fullText) {
+  const textToCheck = `${reason || ''} ${fullText || ''}`.toLowerCase();
+  
+  // Strong pain / emergency indicators (including grammatical variants)
+  const urgentIndicators = [
+    'starke zahnschmerzen',
+    'starken zahnschmerzen',  // dative case
+    'starker zahnschmerz',    // genitive singular
+    'sehr starke schmerzen',
+    'sehr starken schmerzen', // dative case
+    'starke schmerzen',
+    'starken schmerzen',      // dative case
+    'sehr weh',
+    'akut',
+    'notfall',
+    'schmerzen seit gestern',
+    'schmerzen seit heute',
+    'unerträglich',
+    'kaum aushalten',
+    'schlimme schmerzen',
+    'schlimmen schmerzen'     // dative case
+  ];
+  
+  const isUrgent = urgentIndicators.some(indicator => textToCheck.includes(indicator));
+  
+  return isUrgent ? 'akut' : 'normal';
+}
+
+/**
  * Save lead to Supabase - only when all required fields are present
  */
-async function saveLead({ name, phone, reason, preferredTime, source, rawText, callSid }) {
+async function saveLead({ name, phone, reason, preferredTime, urgency, requestedTime, source, rawText, callSid }) {
   try {
     // Only save when all fields are present
     if (!name || !phone || !reason || !preferredTime) {
@@ -325,14 +357,22 @@ async function saveLead({ name, phone, reason, preferredTime, source, rawText, c
     }
 
     console.log('💾 Saving lead to Supabase...');
-    console.log('Lead data:', { name, phone, reason, preferredTime, source });
+    console.log('Lead data:', { 
+      name, 
+      phone, 
+      reason, 
+      preferredTime, 
+      urgency, 
+      requestedTime,
+      source 
+    });
 
     const lead = {
       call_sid: callSid || `${source}-${Date.now()}`,
       name,
       phone,
       concern: reason,
-      urgency: 'normal', // default value
+      urgency: urgency || 'normal',
       insurance: null,
       preferred_slots: { raw: preferredTime },
       notes: rawText || null,
@@ -1756,12 +1796,29 @@ app.post('/api/twilio/voice/step', async (req, res) => {
         const extractedLead = await extractLeadFieldsFromText(aiReply);
         console.log('Extracted lead:', extractedLead);
         
+        // Collect all user messages for urgency classification
+        const userMessages = state.messages
+          .filter(msg => msg.role === 'user')
+          .map(msg => msg.content)
+          .join(' ');
+        
+        // Classify urgency based on pain indicators in user messages
+        const urgency = classifyUrgency(extractedLead.reason, userMessages);
+        console.log('📊 Classified urgency:', urgency);
+        console.log('   Checked text:', extractedLead.reason, '|', userMessages.substring(0, 100));
+        
+        // Extract requested time (human-readable format)
+        const requestedTime = extractedLead.preferred_time;
+        console.log('🕐 Requested time:', requestedTime);
+        
         // Save lead if all fields are present
         const savedLead = await saveLead({
           name: extractedLead.name,
           phone: extractedLead.phone,
           reason: extractedLead.reason,
           preferredTime: extractedLead.preferred_time,
+          urgency: urgency,
+          requestedTime: requestedTime,
           source: 'twilio',
           rawText: aiReply,
           callSid: callSid
@@ -1867,12 +1924,29 @@ app.post('/api/simulate', async (req, res) => {
         const extractedLead = await extractLeadFieldsFromText(reply);
         console.log('Extracted lead:', extractedLead);
         
+        // Collect all user messages for urgency classification
+        const userMessages = state.messages
+          .filter(msg => msg.role === 'user')
+          .map(msg => msg.content)
+          .join(' ');
+        
+        // Classify urgency based on pain indicators in user messages
+        const urgency = classifyUrgency(extractedLead.reason, userMessages);
+        console.log('📊 Classified urgency:', urgency);
+        console.log('   Checked text:', extractedLead.reason, '|', userMessages.substring(0, 100));
+        
+        // Extract requested time (human-readable format)
+        const requestedTime = extractedLead.preferred_time;
+        console.log('🕐 Requested time:', requestedTime);
+        
         // Save lead if all fields are present
         const savedLead = await saveLead({
           name: extractedLead.name,
           phone: extractedLead.phone,
           reason: extractedLead.reason,
           preferredTime: extractedLead.preferred_time,
+          urgency: urgency,
+          requestedTime: requestedTime,
           source: 'simulate',
           rawText: reply,
           callSid: sid
