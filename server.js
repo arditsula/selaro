@@ -1120,11 +1120,81 @@ app.get('/simulate', (req, res) => {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           min-height: 100vh;
           display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 20px;
+          flex-direction: column;
           position: relative;
           overflow-x: hidden;
+        }
+
+        /* Shared Navigation Bar */
+        .nav-bar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 70px;
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 40px;
+          z-index: 100;
+        }
+
+        .nav-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .nav-logo {
+          font-size: 18px;
+          font-weight: 700;
+          color: white;
+          letter-spacing: -0.5px;
+        }
+
+        .nav-subtitle {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.6);
+          font-weight: 400;
+        }
+
+        .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 32px;
+        }
+
+        .nav-link {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.7);
+          text-decoration: none;
+          font-weight: 500;
+          transition: all 0.2s ease;
+          position: relative;
+          padding-bottom: 4px;
+        }
+
+        .nav-link:hover {
+          color: white;
+        }
+
+        .nav-link.active {
+          color: white;
+          border-bottom: 2px solid white;
+        }
+
+        /* Content wrapper */
+        .app-content {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 70px 20px 20px;
+          min-height: 100vh;
         }
 
         /* Glassmorphism Container */
@@ -1478,8 +1548,20 @@ app.get('/simulate', (req, res) => {
 
         /* Mobile Responsive */
         @media (max-width: 768px) {
-          body {
-            padding: 12px;
+          .nav-bar {
+            padding: 0 20px;
+          }
+
+          .nav-right {
+            gap: 20px;
+          }
+
+          .nav-link {
+            font-size: 13px;
+          }
+
+          .app-content {
+            padding: 70px 12px 12px;
           }
 
           .glass-card {
@@ -1519,7 +1601,21 @@ app.get('/simulate', (req, res) => {
       </style>
     </head>
     <body>
-      <div class="glass-card">
+      <!-- Shared Navigation Bar -->
+      <div class="nav-bar">
+        <div class="nav-left">
+          <div class="nav-logo">Selaro</div>
+          <div class="nav-subtitle">AI Reception</div>
+        </div>
+        <div class="nav-right">
+          <a href="/simulate" class="nav-link active">Simulator</a>
+          <a href="/leads" class="nav-link">Leads</a>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="app-content">
+        <div class="glass-card">
         <!-- LEFT COLUMN: Clinic Info -->
         <div class="clinic-panel">
           <div>
@@ -1585,6 +1681,7 @@ app.get('/simulate', (req, res) => {
             </form>
           </div>
         </div>
+      </div>
       </div>
 
       <script>
