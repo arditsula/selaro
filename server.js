@@ -251,68 +251,88 @@ async function createLeadFromCall({
 }
 
 /**
- * Detect if AI response contains lead information and extract it
- * Returns { hasLeadInfo: boolean, leadData: {...} }
+ * Unified system prompt for AI receptionist (used in both Twilio and simulator)
  */
-async function detectAndExtractLead(aiResponse, conversationHistory) {
-  if (!openai) {
-    return { hasLeadInfo: false, leadData: null };
-  }
+function buildSystemPrompt(clinicName, clinicInstructions) {
+  return `You are a polite and professional German receptionist for a dental clinic.
+Clinic name: ${clinicName}
+Clinic instructions: ${clinicInstructions}
 
-  // Check if response contains summary indicators (German)
-  const hasSummary = 
-    aiResponse.includes('Ich habe folgende Informationen') ||
-    aiResponse.includes('Vollständiger Name:') ||
-    aiResponse.includes('Telefonnummer:') ||
-    aiResponse.includes('Grund des Termins:') ||
-    (aiResponse.includes('Name:') && aiResponse.includes('Telefon'));
+CRITICAL RULES:
+1. Always answer in German (de-DE).
+2. Keep responses SHORT and friendly (max 2-3 sentences per turn).
+3. To book an appointment, you MUST collect these 4 fields:
+   - Name (full name)
+   - Telefon (phone number)
+   - Grund (reason for visit: pain, cleaning, checkup, etc.)
+   - Wunschtermin (preferred day/time)
 
-  if (!hasSummary && conversationHistory.length < 4) {
-    return { hasLeadInfo: false, leadData: null };
+4. FIELD TRACKING BEHAVIOR:
+   - Track which fields you have already collected in this conversation.
+   - If a field was already provided, NEVER ask for it again.
+   - If user mentions a field in passing, capture it and confirm.
+   - Ask for ONE missing field at a time.
+
+5. WHEN ALL 4 FIELDS ARE COLLECTED:
+   - Stop asking questions immediately.
+   - Output this EXACT format (replace <> with actual values):
+
+**LEAD SUMMARY**
+Name: <Full Name>
+Telefon: <Phone Number>
+Grund: <Reason>
+Wunschtermin: <Preferred Time>
+
+Vielen Dank! Unser Team meldet sich zur Terminbestätigung bei Ihnen.
+
+6. EXAMPLE CONVERSATION FLOW:
+   User: "Ich habe Zahnschmerzen"
+   You: "Das tut mir leid. Wie ist Ihr vollständiger Name?"
+   User: "Anna Müller"
+   You: "Unter welcher Telefonnummer können wir Sie erreichen?"
+   User: "0341 123456"
+   You: "Wann hätten Sie am liebsten einen Termin?"
+   User: "Morgen Vormittag"
+   You: [Output the **LEAD SUMMARY** format above]
+
+7. Never give prices. Never make up appointment times.`;
+}
+
+/**
+ * Simple regex-based detection of LEAD SUMMARY format
+ * Returns { hasSummary: boolean, leadData: {...} } or { hasSummary: false }
+ */
+function detectLeadSummary(aiResponse) {
+  // Check if response contains the required marker
+  if (!aiResponse.includes('**LEAD SUMMARY**')) {
+    return { hasSummary: false, leadData: null };
   }
 
   try {
-    // Use OpenAI to extract structured data
-    const extractionPrompt = {
-      role: 'system',
-      content: `Analysieren Sie das Gespräch und extrahieren Sie folgende Informationen im JSON-Format:
-{
-  "hasCompleteInfo": true wenn Name UND (Telefon ODER Grund) vorhanden sind, sonst false,
-  "name": "Vollständiger Name des Anrufers oder null",
-  "phone": "Telefonnummer oder null",
-  "concern": "Grund des Besuchs (z.B. 'Zahnschmerzen', 'Zahnreinigung', 'Kontrolle') oder null",
-  "preferredTime": "Bevorzugte Terminzeit oder null"
-}
+    // Extract fields using regex
+    const nameMatch = aiResponse.match(/Name:\s*(.+)/i);
+    const phoneMatch = aiResponse.match(/Telefon:\s*(.+)/i);
+    const reasonMatch = aiResponse.match(/Grund:\s*(.+)/i);
+    const timeMatch = aiResponse.match(/Wunschtermin:\s*(.+)/i);
 
-Antworten Sie NUR mit dem JSON-Objekt, ohne zusätzlichen Text.`
-    };
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [extractionPrompt, ...conversationHistory.slice(-6)], // Last 6 messages for context
-      temperature: 0,
-      max_tokens: 200,
-      response_format: { type: 'json_object' }
-    });
-
-    const extracted = JSON.parse(completion.choices[0].message.content);
-    
-    if (extracted.hasCompleteInfo && (extracted.name || extracted.phone || extracted.concern)) {
-      return {
-        hasLeadInfo: true,
-        leadData: {
-          name: extracted.name || 'Unbekannt',
-          phone: extracted.phone || null,
-          concern: extracted.concern || 'Terminanfrage',
-          preferredTime: extracted.preferredTime || null
-        }
-      };
+    // All 4 fields must be present
+    if (!nameMatch || !phoneMatch || !reasonMatch || !timeMatch) {
+      console.warn('⚠️ LEAD SUMMARY tag found but missing fields');
+      return { hasSummary: false, leadData: null };
     }
 
-    return { hasLeadInfo: false, leadData: null };
+    return {
+      hasSummary: true,
+      leadData: {
+        name: nameMatch[1].trim(),
+        phone: phoneMatch[1].trim(),
+        concern: reasonMatch[1].trim(),
+        preferredTime: timeMatch[1].trim()
+      }
+    };
   } catch (err) {
-    console.error('Error extracting lead data:', err);
-    return { hasLeadInfo: false, leadData: null };
+    console.error('Error parsing LEAD SUMMARY:', err);
+    return { hasSummary: false, leadData: null };
   }
 }
 
@@ -1559,23 +1579,8 @@ app.post('/api/twilio/voice/step', async (req, res) => {
     // Use getClinic() to load clinic data
     const clinic = await getClinic();
     
-    // Build systemPrompt
-    const systemPrompt = `You are a polite and professional receptionist for a dental clinic in Germany.
-Clinic name: ${clinic.name}.
-Use the following clinic-specific instructions:
-${clinic.instructions}
-
-Rules:
-- Always answer in German (de-DE).
-- Keep answers short and friendly (max 2-3 sentences per response).
-- If the caller wants an appointment, ask for:
-  1) full name
-  2) phone number
-  3) reason for the visit
-  4) preferred days/times
-- After collecting all information, summarize it back to them.
-- Never give exact prices.
-- At the end say the team will call back to confirm.`;
+    // Build unified system prompt
+    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions);
     
     // Call OpenAI with full conversation history
     const completion = await openai.chat.completions.create({
@@ -1585,7 +1590,7 @@ Rules:
         ...state.messages
       ],
       temperature: 0.7,
-      max_tokens: 150
+      max_tokens: 200
     });
     
     // Extract AI reply
@@ -1597,31 +1602,31 @@ Rules:
       content: aiReply
     });
     
-    // Try to detect and save lead if not already saved
+    // Detect LEAD SUMMARY and save if not already saved
     if (!state.leadSaved && supabase) {
-      try {
-        const { hasLeadInfo, leadData } = await detectAndExtractLead(aiReply, state.messages);
-        
-        if (hasLeadInfo && leadData) {
-          console.log('📋 Lead info detected, saving to Supabase...', leadData);
+      const { hasSummary, leadData } = detectLeadSummary(aiReply);
+      
+      if (hasSummary && leadData) {
+        try {
+          console.log('📋 LEAD SUMMARY detected! Saving to Supabase...', leadData);
           
           const lead = await createLeadFromCall({
             callSid: callSid,
             name: leadData.name,
-            phone: leadData.phone || fromNumber,
+            phone: leadData.phone,
             concern: leadData.concern,
             urgency: null,
             insurance: null,
             preferredSlotsRaw: leadData.preferredTime,
-            notes: `Twilio Call - AI Response: ${aiReply.substring(0, 200)}`
+            notes: `Twilio Call - CallSid: ${callSid}`
           });
           
           state.leadSaved = true;
-          console.log('✅ Lead saved successfully:', lead.id);
+          console.log('✅ Lead saved successfully! ID:', lead.id);
+        } catch (leadError) {
+          // Log error but don't break the call
+          console.error('⚠️ Error saving lead (call continues):', leadError);
         }
-      } catch (leadError) {
-        // Log error but don't break the call
-        console.error('⚠️ Error saving lead (call continues):', leadError);
       }
     }
     
@@ -1683,23 +1688,8 @@ app.post('/api/simulate', async (req, res) => {
     // Use the same getClinic() helper
     const clinic = await getClinic();
     
-    // Build the SAME system prompt logic as the Twilio route
-    const systemPrompt = `You are a polite and professional receptionist for a dental clinic in Germany.
-Clinic name: ${clinic.name}.
-Use the following clinic-specific instructions:
-${clinic.instructions}
-
-Rules:
-- Always answer in German (de-DE).
-- Keep answers short and friendly (max 2-3 sentences per response).
-- If the caller wants an appointment, ask for:
-  1) full name
-  2) phone number
-  3) reason for the visit
-  4) preferred days/times
-- After collecting all information, summarize it back to them.
-- Never give exact prices.
-- At the end say the team will call back to confirm.`;
+    // Build unified system prompt (same as Twilio)
+    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions);
     
     // Call OpenAI with full conversation history
     const completion = await openai.chat.completions.create({
@@ -1709,7 +1699,7 @@ Rules:
         ...state.messages
       ],
       temperature: 0.7,
-      max_tokens: 150
+      max_tokens: 200
     });
     
     // Extract AI reply
@@ -1721,13 +1711,13 @@ Rules:
       content: reply
     });
     
-    // Try to detect and save lead if not already saved
+    // Detect LEAD SUMMARY and save if not already saved
     if (!state.leadSaved && supabase) {
-      try {
-        const { hasLeadInfo, leadData } = await detectAndExtractLead(reply, state.messages);
-        
-        if (hasLeadInfo && leadData) {
-          console.log('📋 Lead info detected in simulator, saving to Supabase...', leadData);
+      const { hasSummary, leadData } = detectLeadSummary(reply);
+      
+      if (hasSummary && leadData) {
+        try {
+          console.log('📋 LEAD SUMMARY detected in simulator! Saving to Supabase...', leadData);
           
           const lead = await createLeadFromCall({
             callSid: sid,
@@ -1737,15 +1727,15 @@ Rules:
             urgency: null,
             insurance: null,
             preferredSlotsRaw: leadData.preferredTime,
-            notes: `Web Simulator - AI Response: ${reply.substring(0, 200)}`
+            notes: `Web Simulator - Session: ${sid}`
           });
           
           state.leadSaved = true;
-          console.log('✅ Lead saved successfully from simulator:', lead.id);
+          console.log('✅ Lead saved successfully from simulator! ID:', lead.id);
+        } catch (leadError) {
+          // Log error but don't break the conversation
+          console.error('⚠️ Error saving lead from simulator (conversation continues):', leadError);
         }
-      } catch (leadError) {
-        // Log error but don't break the conversation
-        console.error('⚠️ Error saving lead from simulator (conversation continues):', leadError);
       }
     }
     

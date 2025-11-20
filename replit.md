@@ -33,19 +33,34 @@ POST https://selaro.app/api/twilio/voice/step
 ```
 
 ### 2. AI Conversation Management
-- **Conversation State**: Stored in-memory per `CallSid` with message history
+- **Conversation State**: Stored in-memory per `CallSid` with full message history
 - **Clinic Instructions**: Fetched from Supabase `clinics` table for clinic ID `bc91d95c-a05c-4004-b932-bc393f0391b6`
-- **OpenAI Integration**: GPT-4o-mini generates natural German responses (max 150 tokens, short and conversational)
-- **Data Collection**: AI gathers name, concern, insurance, and preferred appointment time
-- **Turn Limit**: Max 4 conversation turns (8 messages) to keep calls brief
+- **OpenAI Integration**: GPT-4o-mini generates natural German responses (max 200 tokens)
+- **Field Tracking**: AI explicitly tracks which of the 4 required fields have been collected:
+  1. **Name** (full name)
+  2. **Telefon** (phone number)
+  3. **Grund** (reason for visit: pain, cleaning, checkup, etc.)
+  4. **Wunschtermin** (preferred day/time)
+- **No Duplicate Questions**: AI never re-asks for information already provided
+- **One Question at a Time**: AI asks for ONE missing field per turn
 
-### 3. Conversation End & Lead Creation
-When the conversation ends (goodbye keywords or max turns), the system:
-1. Extracts structured data using OpenAI with `response_format: json_object`
-2. Saves lead to Supabase `leads` table with:
-   - `call_sid`, `name`, `phone`, `concern`, `urgency`, `insurance`, `preferred_slots`, `notes`, `status`
-3. Cleans up conversation state from memory
-4. Hangs up with a friendly German goodbye
+### 3. Lead Summary & Automatic Save
+When ALL 4 fields are collected, the AI:
+1. **Stops asking questions immediately**
+2. **Outputs this EXACT format**:
+```
+**LEAD SUMMARY**
+Name: <Full Name>
+Telefon: <Phone Number>
+Grund: <Reason>
+Wunschtermin: <Preferred Time>
+
+Vielen Dank! Unser Team meldet sich zur Terminbestätigung bei Ihnen.
+```
+3. **Backend detects `**LEAD SUMMARY**` tag** using simple regex parsing
+4. **Extracts all 4 fields** from the summary
+5. **Saves lead to Supabase** `leads` table automatically
+6. **Prevents duplicates** using `leadSaved` flag per session
 
 ## Database Tables
 
