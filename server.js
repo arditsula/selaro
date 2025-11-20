@@ -1096,7 +1096,7 @@ app.get('/', (req, res) => {
   res.type('html').send(html);
 });
 
-// Simulator page - modern SaaS-style chat UI to test the AI receptionist
+// Simulator page - premium SaaS UI with glassmorphism to test the AI receptionist
 app.get('/simulate', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -1104,7 +1104,10 @@ app.get('/simulate', (req, res) => {
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Selaro – Receptionist Simulator</title>
+      <title>Selaro – AI Receptionist Simulator</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
         * {
           margin: 0;
@@ -1113,166 +1116,227 @@ app.get('/simulate', (req, res) => {
         }
 
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          background: #f3f4f6;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           min-height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 20px;
+          position: relative;
+          overflow-x: hidden;
         }
 
-        .container {
+        /* Glassmorphism Container */
+        .glass-card {
           width: 100%;
-          max-width: 1100px;
-          background: white;
-          border-radius: 20px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+          max-width: 1200px;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-radius: 24px;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
           overflow: hidden;
           display: grid;
-          grid-template-columns: 1fr 1.5fr;
-          min-height: 600px;
+          grid-template-columns: 2fr 3fr;
+          min-height: 680px;
         }
 
         /* LEFT COLUMN - Clinic Info */
-        .clinic-info {
-          background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-          padding: 40px;
+        .clinic-panel {
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          padding: 48px 40px;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          border-right: 1px solid #e5e7eb;
+          border-right: 1px solid rgba(255, 255, 255, 0.2);
+          position: relative;
         }
 
-        .clinic-header {
-          margin-bottom: 30px;
-        }
-
-        .clinic-name {
-          font-size: 24px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 8px;
-          line-height: 1.3;
-        }
-
-        .clinic-address {
-          font-size: 15px;
-          color: #6b7280;
-          margin-bottom: 20px;
-        }
-
-        .info-section {
+        .tooth-icon {
+          width: 48px;
+          height: 48px;
           margin-bottom: 24px;
+          opacity: 0.9;
         }
 
-        .info-label {
+        .clinic-title {
+          font-size: 26px;
+          font-weight: 700;
+          color: white;
+          margin-bottom: 8px;
+          line-height: 1.2;
+          letter-spacing: -0.5px;
+        }
+
+        .clinic-subtitle {
+          font-size: 15px;
+          color: rgba(255, 255, 255, 0.8);
+          margin-bottom: 32px;
+          font-weight: 400;
+        }
+
+        .info-item {
           display: flex;
           align-items: center;
+          margin-bottom: 16px;
+          color: rgba(255, 255, 255, 0.9);
           font-size: 14px;
-          font-weight: 600;
-          color: #374151;
-          margin-bottom: 6px;
         }
 
-        .info-label::before {
-          content: '●';
-          color: #00C896;
-          margin-right: 8px;
-          font-size: 18px;
+        .info-item svg {
+          width: 18px;
+          height: 18px;
+          margin-right: 12px;
+          opacity: 0.8;
         }
 
-        .info-value {
+        .clinic-description {
           font-size: 14px;
-          color: #6b7280;
-          margin-left: 26px;
-        }
-
-        .description {
-          font-size: 14px;
-          color: #6b7280;
           line-height: 1.6;
-          background: rgba(255, 255, 255, 0.5);
-          padding: 16px;
-          border-radius: 12px;
-          margin-top: 20px;
+          color: rgba(255, 255, 255, 0.75);
+          background: rgba(255, 255, 255, 0.08);
+          padding: 20px;
+          border-radius: 16px;
+          margin-top: 32px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .powered-by {
-          display: inline-block;
-          background: white;
-          color: #00C896;
+        .powered-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 8px 16px;
+          background: rgba(255, 255, 255, 0.95);
+          color: #2563eb;
           font-size: 12px;
           font-weight: 600;
-          padding: 6px 12px;
-          border-radius: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+          border-radius: 999px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
           margin-top: auto;
         }
 
-        /* RIGHT COLUMN - Chat UI */
+        /* RIGHT COLUMN - Chat */
         .chat-panel {
+          background: rgba(255, 255, 255, 0.95);
           display: flex;
           flex-direction: column;
-          background: white;
         }
 
         .chat-header {
-          background: white;
-          padding: 20px 24px;
-          border-bottom: 1px solid #e5e7eb;
+          padding: 24px 28px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
           display: flex;
           align-items: center;
           justify-content: space-between;
+          background: rgba(255, 255, 255, 0.5);
+          backdrop-filter: blur(10px);
         }
 
-        .chat-title {
-          font-size: 18px;
-          font-weight: 600;
-          color: #111827;
-        }
-
-        .status {
+        .header-left {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 14px;
+          gap: 14px;
+        }
+
+        .avatar {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 700;
+          font-size: 16px;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .header-info {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .header-name {
+          font-size: 16px;
+          font-weight: 600;
+          color: #111827;
+          line-height: 1.2;
+        }
+
+        .header-subtitle {
+          font-size: 13px;
           color: #6b7280;
+          line-height: 1.3;
+        }
+
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          background: rgba(16, 185, 129, 0.1);
+          border-radius: 999px;
+          font-size: 13px;
+          color: #10b981;
+          font-weight: 500;
         }
 
         .status-dot {
-          width: 8px;
-          height: 8px;
+          width: 6px;
+          height: 6px;
           background: #10b981;
           border-radius: 50%;
-          animation: pulse 2s infinite;
+          animation: pulse 2s ease-in-out infinite;
         }
 
         @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.6;
+            transform: scale(0.9);
+          }
         }
 
+        /* Chat Messages */
         .chat-messages {
           flex: 1;
           overflow-y: auto;
-          padding: 24px;
+          padding: 28px;
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          max-height: 450px;
-          min-height: 380px;
+          gap: 16px;
+          background: transparent;
+          max-height: 480px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 3px;
         }
 
         .message {
           display: flex;
-          animation: slideIn 0.3s ease-out;
+          animation: fadeSlideIn 0.4s ease-out;
         }
 
-        @keyframes slideIn {
+        @keyframes fadeSlideIn {
           from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(12px);
           }
           to {
             opacity: 1;
@@ -1289,162 +1353,232 @@ app.get('/simulate', (req, res) => {
         }
 
         .message-bubble {
-          max-width: 75%;
-          padding: 12px 16px;
+          max-width: 72%;
+          padding: 14px 18px;
           border-radius: 16px;
           line-height: 1.5;
           word-wrap: break-word;
+          font-size: 15px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .message.ai .message-bubble {
-          background: #f3f4f6;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(10px);
           color: #111827;
           border-bottom-left-radius: 4px;
+          border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .message.user .message-bubble {
-          background: #3b82f6;
+          background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
           color: white;
           border-bottom-right-radius: 4px;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
+        /* Input Area */
         .chat-input-area {
-          padding: 20px 24px;
-          border-top: 1px solid #e5e7eb;
-          background: #f9fafb;
+          padding: 20px 28px 24px;
+          border-top: 1px solid rgba(0, 0, 0, 0.06);
+          background: rgba(255, 255, 255, 0.5);
+          backdrop-filter: blur(10px);
         }
 
-        .input-wrapper {
-          display: flex;
-          gap: 12px;
+        .loading-text {
+          font-size: 13px;
+          color: #6b7280;
+          margin-bottom: 12px;
+          display: none;
           align-items: center;
+          gap: 8px;
+        }
+
+        .loading-text.visible {
+          display: flex;
+        }
+
+        .spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(107, 114, 128, 0.2);
+          border-top-color: #6b7280;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .input-container {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          background: white;
+          border-radius: 999px;
+          padding: 6px 6px 6px 20px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          transition: all 0.2s ease;
+        }
+
+        .input-container:focus-within {
+          box-shadow: 0 6px 24px rgba(37, 99, 235, 0.15);
+          border-color: rgba(37, 99, 235, 0.3);
         }
 
         #input {
           flex: 1;
-          padding: 12px 16px;
-          border: 1px solid #d1d5db;
-          border-radius: 12px;
-          font-size: 15px;
+          border: none;
           outline: none;
-          transition: border-color 0.2s;
+          font-size: 15px;
+          color: #111827;
+          background: transparent;
+          font-family: 'Inter', sans-serif;
         }
 
-        #input:focus {
-          border-color: #3b82f6;
+        #input::placeholder {
+          color: #9ca3af;
         }
 
         #input:disabled {
-          background: #f3f4f6;
+          opacity: 0.5;
           cursor: not-allowed;
         }
 
         #sendBtn {
-          padding: 12px 24px;
-          background: #3b82f6;
+          padding: 11px 24px;
+          background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
           color: white;
           border: none;
-          border-radius: 12px;
-          font-size: 15px;
+          border-radius: 999px;
+          font-size: 14px;
           font-weight: 600;
           cursor: pointer;
-          transition: background 0.2s;
-          white-space: nowrap;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+          font-family: 'Inter', sans-serif;
         }
 
         #sendBtn:hover:not(:disabled) {
-          background: #2563eb;
+          transform: scale(1.02);
+          box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+        }
+
+        #sendBtn:active:not(:disabled) {
+          transform: scale(0.98);
         }
 
         #sendBtn:disabled {
-          background: #9ca3af;
+          opacity: 0.5;
           cursor: not-allowed;
+          transform: none;
         }
 
-        .loading-indicator {
-          font-size: 13px;
-          color: #6b7280;
-          padding: 8px 0;
-          text-align: center;
-          display: none;
-        }
-
-        .loading-indicator.visible {
-          display: block;
-        }
-
-        /* MOBILE RESPONSIVE */
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-          .container {
+          body {
+            padding: 12px;
+          }
+
+          .glass-card {
             grid-template-columns: 1fr;
             min-height: auto;
+            max-height: 90vh;
           }
 
-          .clinic-info {
-            padding: 24px;
+          .clinic-panel {
+            padding: 32px 24px;
             border-right: none;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
           }
 
-          .clinic-name {
-            font-size: 20px;
+          .clinic-title {
+            font-size: 22px;
           }
 
           .chat-messages {
-            max-height: 400px;
-            min-height: 300px;
+            max-height: 380px;
+            padding: 20px;
           }
 
           .message-bubble {
             max-width: 85%;
+            font-size: 14px;
+          }
+
+          .chat-header {
+            padding: 18px 20px;
+          }
+
+          .chat-input-area {
+            padding: 16px 20px;
           }
         }
       </style>
     </head>
     <body>
-      <div class="container">
+      <div class="glass-card">
         <!-- LEFT COLUMN: Clinic Info -->
-        <div class="clinic-info">
+        <div class="clinic-panel">
           <div>
-            <div class="clinic-header">
-              <h1 class="clinic-name">Zahnarztpraxis<br>Stela Xhelili</h1>
-              <p class="clinic-address">Karl-Liebknecht-Straße 1, Leipzig</p>
+            <!-- Tooth Icon SVG -->
+            <svg class="tooth-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C9.5 2 7 3.5 7 6C7 7 7 8 7 9C7 11 6 13 6 15C6 17 7 19 8 20C9 21 10 22 12 22C14 22 15 21 16 20C17 19 18 17 18 15C18 13 17 11 17 9C17 8 17 7 17 6C17 3.5 14.5 2 12 2Z" fill="white" opacity="0.9"/>
+            </svg>
+
+            <h1 class="clinic-title">Zahnarztpraxis<br/>Stela Xhelili</h1>
+            <p class="clinic-subtitle">Karl-Liebknecht-Straße 1, Leipzig</p>
+
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/>
+              </svg>
+              <span>Mo–Fr · 09:00–18:00</span>
             </div>
 
-            <div class="info-section">
-              <div class="info-label">Öffnungszeiten</div>
-              <div class="info-value">Mo–Fr 09:00–18:00</div>
-            </div>
-
-            <div class="description">
-              Telefon-Simulation der AI-Rezeption. So hört sich der Assistent am Telefon an.
+            <div class="clinic-description">
+              Dies ist eine Simulation der AI-Telefonrezeption. So klingt der Assistent, wenn Patienten in der Praxis anrufen.
             </div>
           </div>
 
-          <div>
-            <span class="powered-by">Powered by Selaro</span>
+          <div class="powered-badge">
+            Powered by Selaro
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: Chat UI -->
+        <!-- RIGHT COLUMN: Chat -->
         <div class="chat-panel">
+          <!-- Header -->
           <div class="chat-header">
-            <div class="chat-title">Selaro – Receptionist Simulator</div>
-            <div class="status">
+            <div class="header-left">
+              <div class="avatar">SX</div>
+              <div class="header-info">
+                <div class="header-name">AI-Rezeption</div>
+                <div class="header-subtitle">Zahnarztpraxis Stela Xhelili</div>
+              </div>
+            </div>
+            <div class="status-badge">
               <span class="status-dot"></span>
-              <span>Online</span>
+              Online
             </div>
           </div>
 
+          <!-- Messages -->
           <div class="chat-messages" id="chat"></div>
 
+          <!-- Input Area -->
           <div class="chat-input-area">
-            <div class="loading-indicator" id="loadingIndicator">Antwort wird geladen...</div>
-            <form class="input-wrapper" id="form">
+            <div class="loading-text" id="loadingText">
+              <div class="spinner"></div>
+              Der Assistent denkt nach…
+            </div>
+            <form class="input-container" id="form">
               <input 
                 type="text" 
                 id="input" 
-                placeholder="Schreiben Sie hier..." 
+                placeholder="Nachricht eingeben…" 
                 autocomplete="off"
               />
               <button type="submit" id="sendBtn">Senden</button>
@@ -1458,9 +1592,9 @@ app.get('/simulate', (req, res) => {
         const form = document.getElementById('form');
         const input = document.getElementById('input');
         const sendBtn = document.getElementById('sendBtn');
-        const loadingIndicator = document.getElementById('loadingIndicator');
+        const loadingText = document.getElementById('loadingText');
         
-        let sessionId = null; // Track session ID for conversation continuity
+        let sessionId = null;
 
         function addMessage(text, role) {
           const messageDiv = document.createElement('div');
@@ -1473,11 +1607,14 @@ app.get('/simulate', (req, res) => {
           messageDiv.appendChild(bubbleDiv);
           chat.appendChild(messageDiv);
           
-          // Auto-scroll to bottom
-          chat.scrollTop = chat.scrollHeight;
+          // Smooth scroll to bottom
+          chat.scrollTo({
+            top: chat.scrollHeight,
+            behavior: 'smooth'
+          });
         }
 
-        // Initial greeting on page load
+        // Initial greeting - pre-loaded without API call
         addMessage('Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?', 'ai');
 
         form.addEventListener('submit', async (e) => {
@@ -1489,15 +1626,16 @@ app.get('/simulate', (req, res) => {
           addMessage(text, 'user');
           input.value = '';
           
-          // Disable input and show loading
+          // Show loading state
           input.disabled = true;
           sendBtn.disabled = true;
-          loadingIndicator.classList.add('visible');
+          sendBtn.textContent = 'Senden…';
+          loadingText.classList.add('visible');
           
           try {
             const body = { message: text };
             if (sessionId) {
-              body.sessionId = sessionId; // Include sessionId if exists
+              body.sessionId = sessionId;
             }
             
             const res = await fetch('/api/simulate', {
@@ -1505,22 +1643,22 @@ app.get('/simulate', (req, res) => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(body)
             });
+            
             const data = await res.json();
             
-            // Store sessionId from response for next request
             if (data.sessionId) {
               sessionId = data.sessionId;
             }
             
-            // Add AI response
             addMessage(data.reply || 'Fehler: Keine Antwort vom Server.', 'ai');
           } catch (err) {
-            addMessage('Es ist ein Fehler aufgetreten.', 'ai');
+            addMessage('Entschuldigung, es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.', 'ai');
           } finally {
-            // Re-enable input and hide loading
+            // Reset loading state
             input.disabled = false;
             sendBtn.disabled = false;
-            loadingIndicator.classList.remove('visible');
+            sendBtn.textContent = 'Senden';
+            loadingText.classList.remove('visible');
             input.focus();
           }
         });
