@@ -2239,6 +2239,89 @@ app.get('/debug/list-leads', async (req, res) => {
 });
 
 
+// API endpoint to update lead status
+app.post('/api/leads/update-status', async (req, res) => {
+  try {
+    const { id, status } = req.body;
+    
+    // Validate input
+    if (!id || !status) {
+      return res.status(400).json({ ok: false, error: 'Missing id or status' });
+    }
+    
+    // Validate status value (whitelist)
+    const validStatuses = ['new', 'in_progress', 'done'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ ok: false, error: 'Invalid status value' });
+    }
+    
+    // Check Supabase availability
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ status: status })
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Error updating lead status:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({ ok: false, error: 'Lead not found' });
+    }
+    
+    res.json({ ok: true, lead: data[0] });
+  } catch (err) {
+    console.error('Unexpected error updating status:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// API endpoint to update lead notes
+app.post('/api/leads/update-notes', async (req, res) => {
+  try {
+    const { id, notes } = req.body;
+    
+    // Validate input
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'Missing id' });
+    }
+    
+    // Trim and limit notes length
+    const trimmedNotes = (notes || '').trim().substring(0, 5000);
+    
+    // Check Supabase availability
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ notes: trimmedNotes })
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Error updating lead notes:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({ ok: false, error: 'Lead not found' });
+    }
+    
+    res.json({ ok: true, lead: data[0] });
+  } catch (err) {
+    console.error('Unexpected error updating notes:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Leads dashboard HTML (dark theme, German)
 app.get('/leads', async (req, res) => {
   try {
@@ -2256,165 +2339,882 @@ app.get('/leads', async (req, res) => {
         .send('<h1>Fehler beim Laden der Leads</h1><p>' + error.message + '</p>');
     }
 
+    const leadsData = JSON.stringify(data || []);
+    
     let html = `
-      <!DOCTYPE html>
-      <html lang="de">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Selaro – Leads</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: #0b1120;
-            color: #e5e7eb;
-            margin: 0;
-            padding: 2rem;
-          }
-          h1 {
-            margin-bottom: 1rem;
-          }
-          .subtitle {
-            color: #9ca3af;
-            margin-bottom: 1.5rem;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #020617;
-            border-radius: 0.75rem;
-            overflow: hidden;
-          }
-          thead {
-            background: #111827;
-          }
-          th, td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #1f2937;
-            font-size: 0.875rem;
-            text-align: left;
-            vertical-align: top;
-          }
-          th {
-            font-weight: 600;
-            color: #9ca3af;
-          }
-          tr:last-child td {
-            border-bottom: none;
-          }
-          .tag {
-            display: inline-block;
-            padding: 0.15rem 0.5rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            background: #1f2937;
-            color: #e5e7eb;
-          }
-          .tag-urgent {
-            background: #7f1d1d;
-            color: #fecaca;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 0.15rem 0.6rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            background: #064e3b;
-            color: #a7f3d0;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-          }
-          .empty-state {
-            padding: 2rem;
-            text-align: center;
-            color: #6b7280;
-          }
-          .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-          }
-          .toolbar a {
-            color: #60a5fa;
-            text-decoration: none;
-            font-size: 0.875rem;
-          }
-          .toolbar a:hover {
-            text-decoration: underline;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="toolbar">
-          <div>
-            <h1>Selaro – Leads</h1>
-            <div class="subtitle">
-              Letzte eingegangene Anfragen (Telefon-Leads)
-            </div>
-          </div>
-          <div>
-            <a href="/">Zurück zur Startseite</a>
-          </div>
-        </div>
-    `;
-
-    if (!data || data.length === 0) {
-      html += `
-        <div class="empty-state">
-          <p>Noch keine Leads vorhanden.</p>
-        </div>
-      `;
-    } else {
-      html += `<table>
-        <thead>
-          <tr>
-            <th>Datum</th>
-            <th>Name</th>
-            <th>Telefon</th>
-            <th>Anliegen</th>
-            <th>Dringlichkeit</th>
-            <th>Versicherung</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-      `;
-
-      for (const lead of data) {
-        const createdAt = lead.created_at
-          ? new Date(lead.created_at).toLocaleString('de-DE')
-          : '';
-        const urgencyTag = lead.urgency === 'urgent'
-          ? '<span class="tag tag-urgent">Akut</span>'
-          : (lead.urgency
-                ? '<span class="tag">' + lead.urgency + '</span>'
-                : '');
-        const insurance = lead.insurance || '';
-        const concern = lead.concern || '';
-        const statusBadge = '<span class="status-badge">' + (lead.status || 'new') + '</span>';
-
-        html += `
-          <tr>
-            <td>${createdAt}</td>
-            <td>${lead.name || ''}</td>
-            <td>${lead.phone || ''}</td>
-            <td>${concern}</td>
-            <td>${urgencyTag}</td>
-            <td>${insurance}</td>
-            <td>${statusBadge}</td>
-          </tr>
-        `;
-      }
-
-      html += `
-        </tbody>
-      </table>
-      `;
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Selaro – Leads</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    html += `
-      </body>
-      </html>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Shared Navigation Bar */
+    .nav-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-link {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      position: relative;
+      padding-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      color: white;
+    }
+
+    .nav-link.active {
+      color: white;
+      border-bottom: 2px solid white;
+    }
+
+    /* Main Content */
+    .app-content {
+      flex: 1;
+      padding: 90px 40px 40px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .dashboard-header {
+      margin-bottom: 32px;
+    }
+
+    .dashboard-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .dashboard-subtitle {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Filters Section */
+    .filters-section {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 300px;
+      position: relative;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: white;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    #searchInput::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    #searchInput:focus {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filter-chip {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .filter-chip:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .filter-chip.active {
+      background: rgba(255, 255, 255, 0.95);
+      color: #667eea;
+      border-color: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Leads Grid */
+    .leads-container {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .leads-list {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .leads-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .leads-table thead {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .leads-table th {
+      padding: 16px 20px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .leads-table tbody tr {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .leads-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .leads-table tbody tr.selected {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .leads-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .leads-table td {
+      padding: 16px 20px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      vertical-align: middle;
+    }
+
+    .urgency-tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .urgency-urgent {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+
+    .urgency-normal {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(16, 185, 129, 0.2);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #6ee7b7;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .status-badge:hover {
+      background: rgba(16, 185, 129, 0.3);
+    }
+
+    .status-new {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+    }
+
+    .status-in_progress {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fcd34d;
+    }
+
+    .status-done {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+    }
+
+    .status-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: rgba(30, 30, 50, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 4px;
+      min-width: 150px;
+      z-index: 10;
+      display: none;
+    }
+
+    .status-dropdown.show {
+      display: block;
+    }
+
+    .status-option {
+      padding: 8px 12px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.2s ease;
+    }
+
+    .status-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Detail Panel */
+    .detail-panel {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 28px;
+      position: sticky;
+      top: 90px;
+      display: none;
+    }
+
+    .detail-panel.show {
+      display: block;
+    }
+
+    .detail-header {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .detail-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 4px;
+    }
+
+    .detail-phone {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.5;
+    }
+
+    .notes-textarea {
+      width: 100%;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: white;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      resize: vertical;
+      min-height: 120px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .notes-textarea::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .notes-textarea:focus {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .save-btn {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #667eea;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 12px;
+    }
+
+    .save-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .save-btn:active {
+      transform: scale(0.98);
+    }
+
+    .save-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(30, 30, 50, 0.95);
+      backdrop-filter: blur(10px);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      display: none;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 15px;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+      .leads-container {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        position: relative;
+        top: 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-bar {
+        padding: 0 20px;
+      }
+
+      .app-content {
+        padding: 90px 20px 20px;
+      }
+
+      .dashboard-title {
+        font-size: 24px;
+      }
+
+      .filters-section {
+        flex-direction: column;
+      }
+
+      .search-box {
+        min-width: 100%;
+      }
+
+      .leads-table th,
+      .leads-table td {
+        padding: 12px 16px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Shared Navigation Bar -->
+  <div class="nav-bar">
+    <div class="nav-left">
+      <div class="nav-logo">Selaro</div>
+      <div class="nav-subtitle">AI Reception</div>
+    </div>
+    <div class="nav-right">
+      <a href="/simulate" class="nav-link">Simulator</a>
+      <a href="/leads" class="nav-link active">Leads</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="app-content">
+    <div class="dashboard-header">
+      <h1 class="dashboard-title">Leads Dashboard</h1>
+      <div class="dashboard-subtitle">Letzte ${data ? data.length : 0} eingegangene Anfragen</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+      <div class="search-box">
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Name oder Telefonnummer suchen…"
+          autocomplete="off"
+        />
+      </div>
+      <div class="filter-chips">
+        <div class="filter-chip active" data-filter="alle">Alle</div>
+        <div class="filter-chip" data-filter="urgent">Akut</div>
+        <div class="filter-chip" data-filter="normal">Normal</div>
+      </div>
+    </div>
+
+    <!-- Leads Grid -->
+    <div class="leads-container">
+      <!-- Leads Table -->
+      <div class="leads-list">
+        <table class="leads-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Name</th>
+              <th>Telefon</th>
+              <th>Anliegen</th>
+              <th>Dringlichkeit</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="leadsTableBody">
+            <!-- Populated by JavaScript -->
+          </tbody>
+        </table>
+        <div id="emptyState" class="empty-state" style="display: none;">
+          Keine Ergebnisse gefunden
+        </div>
+      </div>
+
+      <!-- Detail Panel -->
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+          <div class="detail-name" id="detailName">-</div>
+          <div class="detail-phone" id="detailPhone">-</div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-label">Datum</div>
+          <div class="detail-value" id="detailDate">-</div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-label">Anliegen</div>
+          <div class="detail-value" id="detailConcern">-</div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-label">Versicherung</div>
+          <div class="detail-value" id="detailInsurance">-</div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-label">Wunschtermin</div>
+          <div class="detail-value" id="detailTime">-</div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-label">Notizen</div>
+          <textarea 
+            class="notes-textarea" 
+            id="notesTextarea" 
+            placeholder="Interne Notizen hinzufügen…"
+          ></textarea>
+          <button class="save-btn" id="saveNotesBtn">Notizen speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Load leads data
+    const allLeads = ${leadsData};
+    let filteredLeads = [...allLeads];
+    let selectedLead = null;
+    let currentFilter = 'alle';
+    let currentSearch = '';
+
+    // DOM elements
+    const searchInput = document.getElementById('searchInput');
+    const filterChips = document.querySelectorAll('.filter-chip');
+    const tableBody = document.getElementById('leadsTableBody');
+    const emptyState = document.getElementById('emptyState');
+    const detailPanel = document.getElementById('detailPanel');
+    const toast = document.getElementById('toast');
+
+    // Detail panel elements
+    const detailName = document.getElementById('detailName');
+    const detailPhone = document.getElementById('detailPhone');
+    const detailDate = document.getElementById('detailDate');
+    const detailConcern = document.getElementById('detailConcern');
+    const detailInsurance = document.getElementById('detailInsurance');
+    const detailTime = document.getElementById('detailTime');
+    const notesTextarea = document.getElementById('notesTextarea');
+    const saveNotesBtn = document.getElementById('saveNotesBtn');
+
+    // Apply filters
+    function applyFilters() {
+      filteredLeads = allLeads.filter(lead => {
+        // Search filter
+        const searchMatch = !currentSearch || 
+          (lead.name && lead.name.toLowerCase().includes(currentSearch.toLowerCase())) ||
+          (lead.phone && lead.phone.toLowerCase().includes(currentSearch.toLowerCase()));
+
+        // Urgency filter
+        let urgencyMatch = true;
+        if (currentFilter === 'urgent') {
+          urgencyMatch = lead.urgency === 'urgent';
+        } else if (currentFilter === 'normal') {
+          urgencyMatch = lead.urgency === 'normal' || !lead.urgency;
+        }
+
+        return searchMatch && urgencyMatch;
+      });
+
+      renderTable();
+      
+      // Auto-select first lead if filtered results exist
+      if (filteredLeads.length > 0) {
+        // Only auto-select if no lead is currently selected or if the current selection is not in filtered results
+        const currentLeadInFiltered = selectedLead && filteredLeads.find(l => l.id === selectedLead.id);
+        if (!currentLeadInFiltered) {
+          selectLead(0);
+        }
+      } else {
+        // Clear detail panel if no results
+        selectedLead = null;
+        detailPanel.classList.remove('show');
+      }
+    }
+
+    // Render table
+    function renderTable() {
+      if (filteredLeads.length === 0) {
+        tableBody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tableBody.innerHTML = filteredLeads.map((lead, index) => {
+        const date = lead.created_at ? new Date(lead.created_at).toLocaleString('de-DE') : '-';
+        const urgencyClass = lead.urgency === 'urgent' ? 'urgency-urgent' : 'urgency-normal';
+        const urgencyText = lead.urgency === 'urgent' ? 'Akut' : (lead.urgency || 'Normal');
+        const statusClass = 'status-' + (lead.status || 'new').replace(/\\s+/g, '_');
+        const statusText = getStatusText(lead.status || 'new');
+
+        return \`
+          <tr onclick="selectLead(\${index})" class="\${selectedLead && selectedLead.id === lead.id ? 'selected' : ''}">
+            <td>\${date}</td>
+            <td>\${lead.name || '-'}</td>
+            <td>\${lead.phone || '-'}</td>
+            <td>\${lead.concern || '-'}</td>
+            <td><span class="urgency-tag \${urgencyClass}">\${urgencyText}</span></td>
+            <td>
+              <span class="status-badge \${statusClass}" onclick="event.stopPropagation(); toggleStatusDropdown(\${index}, event)">
+                \${statusText}
+                <span style="font-size: 8px;">▼</span>
+                <div class="status-dropdown" id="statusDropdown\${index}">
+                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'new')">Neu</div>
+                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'in_progress')">In Bearbeitung</div>
+                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'done')">Abgeschlossen</div>
+                </div>
+              </span>
+            </td>
+          </tr>
+        \`;
+      }).join('');
+    }
+
+    // Get status display text
+    function getStatusText(status) {
+      const statusMap = {
+        'new': 'Neu',
+        'in_progress': 'In Bearbeitung',
+        'done': 'Abgeschlossen'
+      };
+      return statusMap[status] || status;
+    }
+
+    // Select lead
+    function selectLead(index) {
+      selectedLead = filteredLeads[index];
+      
+      // Update detail panel
+      detailName.textContent = selectedLead.name || '-';
+      detailPhone.textContent = selectedLead.phone || '-';
+      detailDate.textContent = selectedLead.created_at ? new Date(selectedLead.created_at).toLocaleString('de-DE') : '-';
+      detailConcern.textContent = selectedLead.concern || '-';
+      detailInsurance.textContent = selectedLead.insurance || '-';
+      detailTime.textContent = selectedLead.preferred_time || selectedLead.requested_time || '-';
+      notesTextarea.value = selectedLead.notes || '';
+      
+      // Show panel
+      detailPanel.classList.add('show');
+      
+      // Update selected row
+      renderTable();
+    }
+
+    // Toggle status dropdown
+    function toggleStatusDropdown(index, event) {
+      const dropdown = document.getElementById('statusDropdown' + index);
+      const allDropdowns = document.querySelectorAll('.status-dropdown');
+      
+      // Close all other dropdowns
+      allDropdowns.forEach(d => {
+        if (d !== dropdown) d.classList.remove('show');
+      });
+      
+      dropdown.classList.toggle('show');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.status-badge')) {
+        document.querySelectorAll('.status-dropdown').forEach(d => {
+          d.classList.remove('show');
+        });
+      }
+    });
+
+    // Update status
+    async function updateStatus(leadId, newStatus) {
+      try {
+        const response = await fetch('/api/leads/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: leadId, status: newStatus })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+          // Update local data
+          const leadIndex = allLeads.findIndex(l => l.id === leadId);
+          if (leadIndex !== -1) {
+            allLeads[leadIndex].status = newStatus;
+          }
+
+          // Update selected lead if needed
+          if (selectedLead && selectedLead.id === leadId) {
+            selectedLead.status = newStatus;
+          }
+
+          // Refresh view
+          applyFilters();
+          showToast('Status aktualisiert');
+        } else {
+          showToast('Fehler beim Aktualisieren: ' + result.error);
+        }
+      } catch (err) {
+        console.error('Error updating status:', err);
+        showToast('Fehler beim Aktualisieren');
+      }
+    }
+
+    // Save notes
+    saveNotesBtn.addEventListener('click', async () => {
+      if (!selectedLead) return;
+
+      const notes = notesTextarea.value;
+      saveNotesBtn.disabled = true;
+      saveNotesBtn.textContent = 'Speichern…';
+
+      try {
+        const response = await fetch('/api/leads/update-notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: selectedLead.id, notes: notes })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+          // Update local data
+          const leadIndex = allLeads.findIndex(l => l.id === selectedLead.id);
+          if (leadIndex !== -1) {
+            allLeads[leadIndex].notes = notes;
+          }
+          selectedLead.notes = notes;
+
+          showToast('Notizen gespeichert');
+        } else {
+          showToast('Fehler: ' + result.error);
+        }
+      } catch (err) {
+        console.error('Error saving notes:', err);
+        showToast('Fehler beim Speichern');
+      } finally {
+        saveNotesBtn.disabled = false;
+        saveNotesBtn.textContent = 'Notizen speichern';
+      }
+    });
+
+    // Search input
+    searchInput.addEventListener('input', (e) => {
+      currentSearch = e.target.value.trim();
+      applyFilters();
+    });
+
+    // Filter chips
+    filterChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        // Remove active class from all
+        filterChips.forEach(c => c.classList.remove('active'));
+        
+        // Add active class to clicked
+        chip.classList.add('active');
+        
+        // Update filter
+        currentFilter = chip.getAttribute('data-filter');
+        applyFilters();
+      });
+    });
+
+    // Show toast
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Initial render
+    renderTable();
+  </script>
+</body>
+</html>
     `;
 
     res.type('html').send(html);
