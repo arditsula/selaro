@@ -37,8 +37,12 @@ if (!openai) {
 const CLINIC_ID = process.env.CLINIC_ID || 'bc91d95c-a05c-4004-b932-bc393f0391b6';
 
 // In-memory conversation state management
-// Key: CallSid, Value: { messages: [], extractedData: {} }
+// Key: CallSid or sessionId, Value: { messages: [], extractedData: {}, leadSaved: false }
 const conversationStates = new Map();
+
+// In-memory session state for /simulate endpoint
+// Key: sessionId (generated on first message), Value: { messages: [], leadSaved: false }
+const simulatorSessions = new Map();
 
 // In-memory clinic cache
 let cachedClinic = null;
@@ -243,6 +247,72 @@ async function createLeadFromCall({
   } catch (err) {
     console.error('Unexpected error creating lead from call:', err);
     throw err;
+  }
+}
+
+/**
+ * Detect if AI response contains lead information and extract it
+ * Returns { hasLeadInfo: boolean, leadData: {...} }
+ */
+async function detectAndExtractLead(aiResponse, conversationHistory) {
+  if (!openai) {
+    return { hasLeadInfo: false, leadData: null };
+  }
+
+  // Check if response contains summary indicators (German)
+  const hasSummary = 
+    aiResponse.includes('Ich habe folgende Informationen') ||
+    aiResponse.includes('Vollständiger Name:') ||
+    aiResponse.includes('Telefonnummer:') ||
+    aiResponse.includes('Grund des Termins:') ||
+    (aiResponse.includes('Name:') && aiResponse.includes('Telefon'));
+
+  if (!hasSummary && conversationHistory.length < 4) {
+    return { hasLeadInfo: false, leadData: null };
+  }
+
+  try {
+    // Use OpenAI to extract structured data
+    const extractionPrompt = {
+      role: 'system',
+      content: `Analysieren Sie das Gespräch und extrahieren Sie folgende Informationen im JSON-Format:
+{
+  "hasCompleteInfo": true wenn Name UND (Telefon ODER Grund) vorhanden sind, sonst false,
+  "name": "Vollständiger Name des Anrufers oder null",
+  "phone": "Telefonnummer oder null",
+  "concern": "Grund des Besuchs (z.B. 'Zahnschmerzen', 'Zahnreinigung', 'Kontrolle') oder null",
+  "preferredTime": "Bevorzugte Terminzeit oder null"
+}
+
+Antworten Sie NUR mit dem JSON-Objekt, ohne zusätzlichen Text.`
+    };
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [extractionPrompt, ...conversationHistory.slice(-6)], // Last 6 messages for context
+      temperature: 0,
+      max_tokens: 200,
+      response_format: { type: 'json_object' }
+    });
+
+    const extracted = JSON.parse(completion.choices[0].message.content);
+    
+    if (extracted.hasCompleteInfo && (extracted.name || extracted.phone || extracted.concern)) {
+      return {
+        hasLeadInfo: true,
+        leadData: {
+          name: extracted.name || 'Unbekannt',
+          phone: extracted.phone || null,
+          concern: extracted.concern || 'Terminanfrage',
+          preferredTime: extracted.preferredTime || null
+        }
+      };
+    }
+
+    return { hasLeadInfo: false, leadData: null };
+  } catch (err) {
+    console.error('Error extracting lead data:', err);
+    return { hasLeadInfo: false, leadData: null };
   }
 }
 
@@ -715,6 +785,8 @@ app.get('/simulate', (req, res) => {
         const chat = document.getElementById('chat');
         const form = document.getElementById('form');
         const input = document.getElementById('input');
+        
+        let sessionId = null; // Track session ID for conversation continuity
 
         function addMessage(text, role) {
           const div = document.createElement('div');
@@ -734,12 +806,23 @@ app.get('/simulate', (req, res) => {
           addMessage(text, 'user');
           input.value = '';
           try {
+            const body = { message: text };
+            if (sessionId) {
+              body.sessionId = sessionId; // Include sessionId if exists
+            }
+            
             const res = await fetch('/api/simulate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: text })
+              body: JSON.stringify(body)
             });
             const data = await res.json();
+            
+            // Store sessionId from response for next request
+            if (data.sessionId) {
+              sessionId = data.sessionId;
+            }
+            
             addMessage(data.reply || 'Fehler: Keine Antwort vom Server.', 'ai');
           } catch (err) {
             addMessage('Es ist ein Fehler aufgetreten.', 'ai');
@@ -1430,8 +1513,15 @@ app.post('/api/twilio/voice/step', async (req, res) => {
     const fromNumber = req.body.From;
     const callSid = req.body.CallSid;
     
-    // FIRST REQUEST (no SpeechResult)
+    // FIRST REQUEST (no SpeechResult) - Initialize conversation
     if (!speechResult) {
+      // Initialize conversation state
+      conversationStates.set(callSid, {
+        messages: [],
+        leadSaved: false,
+        fromNumber: fromNumber
+      });
+      
       const twiml = new VoiceResponse();
       const gather = twiml.gather({
         input: 'speech',
@@ -1439,14 +1529,33 @@ app.post('/api/twilio/voice/step', async (req, res) => {
         method: 'POST'
       });
       
+      const greeting = 'Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?';
+      
       gather.say({
         language: 'de-DE'
-      }, 'Guten Tag, Sie sind mit der Zahnarztpraxis Stela Xhelili in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?');
+      }, greeting);
       
       return res.type('text/xml').send(twiml.toString());
     }
     
     // SUBSEQUENT REQUESTS (SpeechResult exists)
+    // Get or create conversation state
+    let state = conversationStates.get(callSid);
+    if (!state) {
+      state = {
+        messages: [],
+        leadSaved: false,
+        fromNumber: fromNumber
+      };
+      conversationStates.set(callSid, state);
+    }
+    
+    // Add user message to conversation history
+    state.messages.push({
+      role: 'user',
+      content: speechResult
+    });
+    
     // Use getClinic() to load clinic data
     const clinic = await getClinic();
     
@@ -1458,33 +1567,71 @@ ${clinic.instructions}
 
 Rules:
 - Always answer in German (de-DE).
-- Keep answers short and friendly.
+- Keep answers short and friendly (max 2-3 sentences per response).
 - If the caller wants an appointment, ask for:
   1) full name
   2) phone number
   3) reason for the visit
   4) preferred days/times
+- After collecting all information, summarize it back to them.
 - Never give exact prices.
 - At the end say the team will call back to confirm.`;
     
-    // Call OpenAI
+    // Call OpenAI with full conversation history
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Note: gpt-4.1-mini doesn't exist, using gpt-4o-mini
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: speechResult }
-      ]
+        ...state.messages
+      ],
+      temperature: 0.7,
+      max_tokens: 150
     });
     
     // Extract AI reply
     const aiReply = completion.choices[0].message.content;
+    
+    // Add AI response to conversation history
+    state.messages.push({
+      role: 'assistant',
+      content: aiReply
+    });
+    
+    // Try to detect and save lead if not already saved
+    if (!state.leadSaved && supabase) {
+      try {
+        const { hasLeadInfo, leadData } = await detectAndExtractLead(aiReply, state.messages);
+        
+        if (hasLeadInfo && leadData) {
+          console.log('📋 Lead info detected, saving to Supabase...', leadData);
+          
+          const lead = await createLeadFromCall({
+            callSid: callSid,
+            name: leadData.name,
+            phone: leadData.phone || fromNumber,
+            concern: leadData.concern,
+            urgency: null,
+            insurance: null,
+            preferredSlotsRaw: leadData.preferredTime,
+            notes: `Twilio Call - AI Response: ${aiReply.substring(0, 200)}`
+          });
+          
+          state.leadSaved = true;
+          console.log('✅ Lead saved successfully:', lead.id);
+        }
+      } catch (leadError) {
+        // Log error but don't break the call
+        console.error('⚠️ Error saving lead (call continues):', leadError);
+      }
+    }
     
     // Respond with TwiML
     const twiml = new VoiceResponse();
     const gather = twiml.gather({
       input: 'speech',
       action: '/api/twilio/voice/step',
-      method: 'POST'
+      method: 'POST',
+      timeout: 4
     });
     
     gather.say({
@@ -1507,12 +1654,31 @@ Rules:
 // JSON simulator endpoint - uses the SAME AI receptionist logic as Twilio route
 app.post('/api/simulate', async (req, res) => {
   try {
-    // Expect JSON body: { "message": "some user input text" }
-    const { message } = req.body;
+    // Expect JSON body: { "message": "some user input text", "sessionId": "optional" }
+    const { message, sessionId } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: 'Missing "message" field in request body' });
     }
+    
+    // Generate or use existing session ID
+    const sid = sessionId || `sim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Get or create session state
+    let state = simulatorSessions.get(sid);
+    if (!state) {
+      state = {
+        messages: [],
+        leadSaved: false
+      };
+      simulatorSessions.set(sid, state);
+    }
+    
+    // Add user message to conversation history
+    state.messages.push({
+      role: 'user',
+      content: message
+    });
     
     // Use the same getClinic() helper
     const clinic = await getClinic();
@@ -1525,29 +1691,69 @@ ${clinic.instructions}
 
 Rules:
 - Always answer in German (de-DE).
-- Keep answers short and friendly.
+- Keep answers short and friendly (max 2-3 sentences per response).
 - If the caller wants an appointment, ask for:
   1) full name
   2) phone number
   3) reason for the visit
   4) preferred days/times
+- After collecting all information, summarize it back to them.
 - Never give exact prices.
 - At the end say the team will call back to confirm.`;
     
-    // Call OpenAI with the same logic
+    // Call OpenAI with full conversation history
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Note: gpt-4.1-mini doesn't exist, using gpt-4o-mini
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ]
+        ...state.messages
+      ],
+      temperature: 0.7,
+      max_tokens: 150
     });
     
     // Extract AI reply
     const reply = completion.choices[0].message.content;
     
-    // Return JSON response
-    res.json({ reply });
+    // Add AI response to conversation history
+    state.messages.push({
+      role: 'assistant',
+      content: reply
+    });
+    
+    // Try to detect and save lead if not already saved
+    if (!state.leadSaved && supabase) {
+      try {
+        const { hasLeadInfo, leadData } = await detectAndExtractLead(reply, state.messages);
+        
+        if (hasLeadInfo && leadData) {
+          console.log('📋 Lead info detected in simulator, saving to Supabase...', leadData);
+          
+          const lead = await createLeadFromCall({
+            callSid: sid,
+            name: leadData.name,
+            phone: leadData.phone,
+            concern: leadData.concern,
+            urgency: null,
+            insurance: null,
+            preferredSlotsRaw: leadData.preferredTime,
+            notes: `Web Simulator - AI Response: ${reply.substring(0, 200)}`
+          });
+          
+          state.leadSaved = true;
+          console.log('✅ Lead saved successfully from simulator:', lead.id);
+        }
+      } catch (leadError) {
+        // Log error but don't break the conversation
+        console.error('⚠️ Error saving lead from simulator (conversation continues):', leadError);
+      }
+    }
+    
+    // Return JSON response with sessionId for client to maintain state
+    res.json({ 
+      reply,
+      sessionId: sid
+    });
     
   } catch (error) {
     console.error('Error in /api/simulate:', error);
