@@ -3227,6 +3227,393 @@ app.get('/leads', async (req, res) => {
   }
 });
 
+// Settings page - Show clinic configuration
+app.get('/settings', async (req, res) => {
+  try {
+    let clinic = null;
+    
+    // Fetch clinic from Supabase
+    if (!supabase) {
+      return res
+        .status(500)
+        .type('html')
+        .send('<h1>Fehler</h1><p>Datenbank nicht konfiguriert</p>');
+    }
+
+    // Try to fetch by CLINIC_ID first, otherwise get first clinic
+    if (process.env.CLINIC_ID) {
+      const { data, error } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('id', process.env.CLINIC_ID)
+        .single();
+      
+      if (!error && data) {
+        clinic = data;
+      }
+    } else {
+      // Get first clinic ordered by created_at
+      const { data, error } = await supabase
+        .from('clinics')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+      
+      if (!error && data) {
+        clinic = data;
+      }
+    }
+
+    const clinicName = clinic?.name || 'Zahnarztpraxis';
+    const clinicPhone = clinic?.phone_number || '-';
+    const clinicAddress = clinic?.address || '-';
+    const clinicHours = 'Mo–Fr · 09:00–18:00'; // Hardcoded for now
+    const clinicInstructions = clinic?.instructions || 'Keine Anweisungen vorhanden';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Einstellungen – Selaro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Shared Navigation Bar */
+    .nav-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-link {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      position: relative;
+      padding-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      color: white;
+    }
+
+    .nav-link.active {
+      color: white;
+      border-bottom: 2px solid white;
+    }
+
+    /* Main Content */
+    .app-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 90px 40px 40px;
+      min-height: 100vh;
+    }
+
+    /* Settings Card Container */
+    .settings-container {
+      width: 100%;
+      max-width: 1100px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 0;
+    }
+
+    /* LEFT CARD: Basic Clinic Info */
+    .settings-left {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+    }
+
+    .settings-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 28px;
+      letter-spacing: -0.5px;
+    }
+
+    .settings-field {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 20px;
+    }
+
+    .settings-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .settings-value {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .powered-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 999px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-top: auto;
+      width: fit-content;
+    }
+
+    /* RIGHT CARD: AI Instructions */
+    .settings-right {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-right .settings-title {
+      color: #1f2937;
+      margin-bottom: 16px;
+    }
+
+    .instructions-textarea {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #1f2937;
+      line-height: 1.6;
+      resize: none;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
+    .instructions-textarea:focus {
+      outline: none;
+      border-color: rgba(0, 0, 0, 0.15);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .instructions-helper {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    /* Error/No Clinic State */
+    .no-clinic-message {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 40px;
+      text-align: center;
+    }
+
+    .no-clinic-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 12px;
+    }
+
+    .no-clinic-subtitle {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .nav-bar {
+        padding: 0 20px;
+      }
+
+      .app-content {
+        padding: 90px 20px 20px;
+      }
+
+      .settings-container {
+        grid-template-columns: 1fr;
+      }
+
+      .settings-left {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .settings-title {
+        font-size: 18px;
+      }
+
+      .settings-label {
+        font-size: 11px;
+      }
+
+      .settings-value {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Shared Navigation Bar -->
+  <div class="nav-bar">
+    <div class="nav-left">
+      <div class="nav-logo">Selaro</div>
+      <div class="nav-subtitle">AI Reception</div>
+    </div>
+    <div class="nav-right">
+      <a href="/simulate" class="nav-link">Simulator</a>
+      <a href="/leads" class="nav-link">Leads</a>
+      <a href="/settings" class="nav-link active">Einstellungen</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="app-content">
+    ${clinic ? `
+    <div class="settings-container">
+      <!-- LEFT CARD: Basic Clinic Info -->
+      <div class="settings-left">
+        <h1 class="settings-title">Praxis Einstellungen</h1>
+
+        <div class="settings-field">
+          <div class="settings-label">Praxisname</div>
+          <div class="settings-value">${clinicName}</div>
+        </div>
+
+        <div class="settings-field">
+          <div class="settings-label">Telefonnummer</div>
+          <div class="settings-value">${clinicPhone}</div>
+        </div>
+
+        <div class="settings-field">
+          <div class="settings-label">Adresse</div>
+          <div class="settings-value">${clinicAddress}</div>
+        </div>
+
+        <div class="settings-field">
+          <div class="settings-label">Öffnungszeiten</div>
+          <div class="settings-value">${clinicHours}</div>
+        </div>
+
+        <div class="powered-badge">
+          Powered by Selaro
+        </div>
+      </div>
+
+      <!-- RIGHT CARD: AI Instructions -->
+      <div class="settings-right">
+        <h1 class="settings-title">AI-Rezeptionsanweisungen</h1>
+        <textarea class="instructions-textarea" readonly>${clinicInstructions}</textarea>
+        <div class="instructions-helper">
+          Diese Anweisungen steuern, wie der AI-Assistent am Telefon mit Patienten spricht.
+        </div>
+      </div>
+    </div>
+    ` : `
+    <div class="settings-container no-clinic-message">
+      <h1 class="no-clinic-title">Keine Klinik-Konfiguration gefunden</h1>
+      <div class="no-clinic-subtitle">Bitte legen Sie eine Klinik in der Datenbank an.</div>
+    </div>
+    `}
+  </div>
+</body>
+</html>
+    `;
+
+    res.type('html').send(html);
+  } catch (err) {
+    console.error('Unexpected error in /settings:', err);
+    res
+      .status(500)
+      .type('html')
+      .send('<h1>Interner Fehler</h1><p>' + err.message + '</p>');
+  }
+});
+
 // AI-powered Twilio voice receptionist endpoint
 app.post('/api/twilio/voice/step', async (req, res) => {
   try {
