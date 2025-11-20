@@ -1466,32 +1466,23 @@ app.get('/debug/env-keys', (req, res) => {
   });
 });
 
-// Create a test lead in Supabase (debug)
-app.post('/debug/create-test-lead', async (req, res) => {
+// Manual debug route for testing lead insertion (never called automatically)
+app.get('/debug/test-lead', async (req, res) => {
   try {
-    const testLead = {
-      name: 'Test Lead Selaro',
+    await saveLead({
+      name: 'Debug Lead',
       phone: '+49123456789',
-      notes: 'Ky është një lead test nga /debug/create-test-lead'
-    };
-
-    const { data, error } = await supabase
-      .from('leads')
-      .insert([testLead])
-      .select();
-
-    if (error) {
-      console.error('Supabase insert error:', error);
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    res.json({
-      ok: true,
-      message: 'Test lead u krijua me sukses 🎉',
-      lead: data[0]
+      reason: 'Test Zahnschmerzen',
+      preferredTime: 'morgen 10:00',
+      urgency: 'normal',
+      requestedTime: 'morgen 10:00',
+      source: 'debug',
+      rawText: 'Debug lead insertion test',
+      callSid: `debug-${Date.now()}`
     });
+    res.json({ ok: true, message: 'Debug lead created successfully' });
   } catch (err) {
-    console.error('Unexpected error creating test lead:', err);
+    console.error('Error creating debug lead:', err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
