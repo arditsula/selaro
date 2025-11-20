@@ -251,6 +251,114 @@ async function createLeadFromCall({
 }
 
 /**
+ * AI-powered lead extraction from natural German text
+ * Uses OpenAI to extract structured fields from receptionist's message
+ */
+async function extractLeadFieldsFromText(text) {
+  try {
+    console.log('🔍 Extracting lead fields from text...');
+    
+    const extractionPrompt = `You are an information extractor. From the following German receptionist message, extract these fields:
+- full name (patient's complete name)
+- phone number (with country code if present)
+- reason for visit (brief description of dental issue)
+- preferred time/date (when patient wants appointment)
+
+If a field is not mentioned or unclear, return null for that field.
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "name": "string or null",
+  "phone": "string or null",
+  "reason": "string or null",
+  "preferred_time": "string or null"
+}
+
+Receptionist message:
+${text}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You extract structured information from German text. Always return valid JSON.' },
+        { role: 'user', content: extractionPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.1,
+      max_tokens: 300
+    });
+
+    const extracted = JSON.parse(completion.choices[0].message.content);
+    console.log('✅ Extracted lead fields:', extracted);
+    
+    return {
+      name: extracted.name || null,
+      phone: extracted.phone || null,
+      reason: extracted.reason || null,
+      preferred_time: extracted.preferred_time || null
+    };
+  } catch (error) {
+    console.error('❌ Error extracting lead fields:', error);
+    return {
+      name: null,
+      phone: null,
+      reason: null,
+      preferred_time: null
+    };
+  }
+}
+
+/**
+ * Save lead to Supabase - only when all required fields are present
+ */
+async function saveLead({ name, phone, reason, preferredTime, source, rawText, callSid }) {
+  try {
+    // Only save when all fields are present
+    if (!name || !phone || !reason || !preferredTime) {
+      console.log('⚠️ Skipping lead save - missing required fields:', {
+        hasName: !!name,
+        hasPhone: !!phone,
+        hasReason: !!reason,
+        hasPreferredTime: !!preferredTime
+      });
+      return null;
+    }
+
+    console.log('💾 Saving lead to Supabase...');
+    console.log('Lead data:', { name, phone, reason, preferredTime, source });
+
+    const lead = {
+      call_sid: callSid || `${source}-${Date.now()}`,
+      name,
+      phone,
+      concern: reason,
+      urgency: 'normal', // default value
+      insurance: null,
+      preferred_slots: { raw: preferredTime },
+      notes: rawText || null,
+      status: 'new'
+    };
+
+    const { data, error } = await supabase
+      .from('leads')
+      .insert([lead])
+      .select();
+
+    if (error) {
+      console.error('❌ Supabase lead insert error:', error);
+      throw error;
+    }
+
+    console.log('✅ Lead saved successfully! ID:', data[0]?.id);
+    return data[0];
+  } catch (error) {
+    console.error('❌ Error saving lead:', error);
+    // Don't throw - we don't want to crash the call
+    return null;
+  }
+}
+
+/**
  * Unified system prompt for AI receptionist (used in both Twilio and simulator)
  * State-machine based receptionist with strict field tracking
  */
@@ -1639,31 +1747,33 @@ app.post('/api/twilio/voice/step', async (req, res) => {
       content: aiReply
     });
     
-    // Detect LEAD SUMMARY and save if not already saved
+    // AI-powered lead extraction and saving
     if (!state.leadSaved && supabase) {
-      const { hasSummary, leadData } = detectLeadSummary(aiReply);
-      
-      if (hasSummary && leadData) {
-        try {
-          console.log('📋 LEAD SUMMARY detected! Saving to Supabase...', leadData);
-          
-          const lead = await createLeadFromCall({
-            callSid: callSid,
-            name: leadData.name,
-            phone: leadData.phone,
-            concern: leadData.concern,
-            urgency: null,
-            insurance: null,
-            preferredSlotsRaw: leadData.preferredTime,
-            notes: `Twilio Call - CallSid: ${callSid}`
-          });
-          
+      try {
+        console.log('🔎 Attempting to extract lead from AI response...');
+        
+        // Extract lead fields using OpenAI
+        const extractedLead = await extractLeadFieldsFromText(aiReply);
+        console.log('Extracted lead:', extractedLead);
+        
+        // Save lead if all fields are present
+        const savedLead = await saveLead({
+          name: extractedLead.name,
+          phone: extractedLead.phone,
+          reason: extractedLead.reason,
+          preferredTime: extractedLead.preferred_time,
+          source: 'twilio',
+          rawText: aiReply,
+          callSid: callSid
+        });
+        
+        if (savedLead) {
           state.leadSaved = true;
-          console.log('✅ Lead saved successfully! ID:', lead.id);
-        } catch (leadError) {
-          // Log error but don't break the call
-          console.error('⚠️ Error saving lead (call continues):', leadError);
+          console.log('✅ Lead saved from Twilio call! ID:', savedLead.id);
         }
+      } catch (leadError) {
+        // Log error but don't break the call
+        console.error('⚠️ Error extracting/saving lead (call continues):', leadError);
       }
     }
     
@@ -1748,31 +1858,33 @@ app.post('/api/simulate', async (req, res) => {
       content: reply
     });
     
-    // Detect LEAD SUMMARY and save if not already saved
+    // AI-powered lead extraction and saving
     if (!state.leadSaved && supabase) {
-      const { hasSummary, leadData } = detectLeadSummary(reply);
-      
-      if (hasSummary && leadData) {
-        try {
-          console.log('📋 LEAD SUMMARY detected in simulator! Saving to Supabase...', leadData);
-          
-          const lead = await createLeadFromCall({
-            callSid: sid,
-            name: leadData.name,
-            phone: leadData.phone,
-            concern: leadData.concern,
-            urgency: null,
-            insurance: null,
-            preferredSlotsRaw: leadData.preferredTime,
-            notes: `Web Simulator - Session: ${sid}`
-          });
-          
+      try {
+        console.log('🔎 Attempting to extract lead from simulator response...');
+        
+        // Extract lead fields using OpenAI
+        const extractedLead = await extractLeadFieldsFromText(reply);
+        console.log('Extracted lead:', extractedLead);
+        
+        // Save lead if all fields are present
+        const savedLead = await saveLead({
+          name: extractedLead.name,
+          phone: extractedLead.phone,
+          reason: extractedLead.reason,
+          preferredTime: extractedLead.preferred_time,
+          source: 'simulate',
+          rawText: reply,
+          callSid: sid
+        });
+        
+        if (savedLead) {
           state.leadSaved = true;
-          console.log('✅ Lead saved successfully from simulator! ID:', lead.id);
-        } catch (leadError) {
-          // Log error but don't break the conversation
-          console.error('⚠️ Error saving lead from simulator (conversation continues):', leadError);
+          console.log('✅ Lead saved from simulator! ID:', savedLead.id);
         }
+      } catch (leadError) {
+        // Log error but don't break the conversation
+        console.error('⚠️ Error extracting/saving lead from simulator (conversation continues):', leadError);
       }
     }
     
