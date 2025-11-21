@@ -1587,12 +1587,8 @@ app.get('/', (req, res) => {
         </div>
         <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(0, 200, 150, 0.3); padding: 2rem; border-radius: 1rem; backdrop-filter: blur(10px); text-align: center; color: #cbd5e1;">
           <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-          <p style="font-size: 0.95rem; margin-bottom: 1.5rem;">Dashboard mit allen Anrufen und Leads in Echtzeit</p>
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 0.5rem; font-size: 0.85rem;">
-            <div style="margin-bottom: 0.75rem;">✓ Alle Leads strukturiert</div>
-            <div style="margin-bottom: 0.75rem;">✓ Akute Fälle hervorgehoben</div>
-            <div>✓ Echtzeit-Benachrichtigungen</div>
-          </div>
+          <p style="font-size: 0.95rem; margin-bottom: 1.5rem;">Dashboard mit allen Telefonanfragen Ihrer Praxis</p>
+          <p style="font-size: 0.9rem; line-height: 1.6;">Jeder Anruf wird als strukturierte Anfrage gespeichert – mit Name, Kontaktdaten, Anliegen, Dringlichkeit und Wunschtermin.</p>
         </div>
       </div>
     </div>
@@ -1851,44 +1847,15 @@ app.get('/', (req, res) => {
     </div>
   </section>
 
-  <!-- Pricing -->
+  <!-- Pilot Phase Section -->
   <section class="pricing">
     <div class="container">
-      <h2>Flexible Preismodelle</h2>
-      <div class="pricing-grid">
-        <div class="pricing-card">
-          <h3>Demo</h3>
-          <div class="pricing-price">0€</div>
-          <div class="pricing-desc">Begrenzte Testphase – Vollständig kostenlos</div>
-          <div style="margin-top: 1.5rem; font-size: 0.95rem; color: #cbd5e1;">
-            <div style="margin-bottom: 0.5rem;">✓ 30 Tage kostenlos</div>
-            <div style="margin-bottom: 0.5rem;">✓ Vollständige Demo-Funktionen</div>
-            <div style="margin-bottom: 0.5rem;">✓ Basis-Support</div>
-            <div>✓ Keine Kreditkarte erforderlich</div>
-          </div>
-        </div>
-        <div class="pricing-card">
-          <h3>Professional</h3>
-          <div class="pricing-price">Preis auf Anfrage</div>
-          <div class="pricing-desc">Für etablierte Praxen</div>
-          <div style="margin-top: 1.5rem; font-size: 0.95rem; color: #cbd5e1;">
-            <div style="margin-bottom: 0.5rem;">✓ Unbegrenzte Anrufe</div>
-            <div style="margin-bottom: 0.5rem;">✓ Erweiterte Anpassung</div>
-            <div style="margin-bottom: 0.5rem;">✓ Prioritäts-Support</div>
-            <div>✓ Integrations-Roadmap</div>
-          </div>
-        </div>
-        <div class="pricing-card">
-          <h3>Enterprise</h3>
-          <div class="pricing-price">Individuell</div>
-          <div class="pricing-desc">Maßgeschneiderte Lösungen</div>
-          <div style="margin-top: 1.5rem; font-size: 0.95rem; color: #cbd5e1;">
-            <div style="margin-bottom: 0.5rem;">✓ Benutzerdefinierte Features</div>
-            <div style="margin-bottom: 0.5rem;">✓ Dedizierter Account Manager</div>
-            <div style="margin-bottom: 0.5rem;">✓ SLA-Garantien</div>
-            <div>✓ Spezial-Integrationen</div>
-          </div>
-        </div>
+      <h2 style="text-align: center; margin-bottom: 2rem;">Aktuell in Pilotphase</h2>
+      <div style="max-width: 700px; margin: 0 auto; text-align: center;">
+        <p style="color: #cbd5e1; font-size: 1.05rem; margin-bottom: 2rem; line-height: 1.7;">
+          Selaro wird derzeit mit ausgewählten Zahnarztpraxen getestet. Wenn Sie Interesse an einer Zusammenarbeit haben, schreiben Sie uns für ein unverbindliches Angebot.
+        </p>
+        <a href="#contact" class="btn btn-primary">Unverbindliche Demo anfragen</a>
       </div>
     </div>
   </section>
