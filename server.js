@@ -672,8 +672,10 @@ app.get('/', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Selaro – KI-Rezeption für Zahnarztpraxen. 24/7 automatische Anrufbehandlung, Patientendatenerfassung und Lead-Generierung.">
-  <title>Selaro – AI Rezeption für Zahnarztpraxen | 24/7 KI-Assistent</title>
+  <meta name="description" content="Selaro – KI-Rezeption für moderne Zahnarztpraxen. 24/7 automatische Anrufbehandlung, Patientendatenerfassung und Lead-Generierung.">
+  <meta property="og:title" content="Selaro – AI Rezeption für Zahnarztpraxen">
+  <meta property="og:description" content="Die Zukunft der Telefonrezeption für Zahnarztpraxen. Automatische Anrufbehandlung, keine verpassten Calls.">
+  <title>Selaro – AI Rezeption für Zahnarztpraxen | Automatische Telefonbeantworter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1422,10 +1424,96 @@ app.get('/', (req, res) => {
     }
 
     /* Mobile Responsive */
+    /* Contact Section */
+    #contact {
+      padding: 5rem 1rem;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    #contact h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .contact-wrapper {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    
+    .contact-text {
+      text-align: center;
+      color: #cbd5e1;
+      margin-bottom: 2rem;
+      font-size: 1rem;
+    }
+    
+    .contact-form {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+      backdrop-filter: blur(10px);
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: block;
+      color: #e2e8f0;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(0, 200, 150, 0.2);
+      border-radius: 0.5rem;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #00C896;
+      background: rgba(15, 23, 42, 0.8);
+      box-shadow: 0 0 0 3px rgba(0, 200, 150, 0.1);
+    }
+    
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .contact-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    
+    .contact-buttons .btn {
+      flex: 1;
+    }
+    
     @media (max-width: 768px) {
       .navbar-content {
         flex-direction: column;
         gap: 1rem;
+      }
+
+      .hero {
+        padding: 6rem 1rem 2rem;
       }
 
       .hero-content h1 {
@@ -1434,6 +1522,10 @@ app.get('/', (req, res) => {
       
       .hero-content .subheading {
         font-size: 1rem;
+      }
+
+      .hero-layout {
+        grid-template-columns: 1fr;
       }
       
       .button-group {
@@ -1450,8 +1542,15 @@ app.get('/', (req, res) => {
       
       .feature-grid,
       .steps-container,
-      .benefits-grid {
+      .benefits-grid,
+      .integrations-grid,
+      .testimonials-grid,
+      .pricing-grid {
         grid-template-columns: 1fr;
+      }
+
+      .contact-buttons {
+        flex-direction: column;
       }
     }
   </style>
@@ -1474,14 +1573,26 @@ app.get('/', (req, res) => {
   <!-- Hero Section -->
   <section class="hero">
     <div class="container">
-      <div class="hero-content">
-        <h1>Die Zukunft der Telefonrezeption für Zahnarztpraxen</h1>
-        <p class="subheading">
-          24/7 AI-Assistent, der Patienten professionell begrüßt, Fragen beantwortet und vollständige Leads an Ihr Team weiterleitet.
-        </p>
-        <div class="button-group">
-          <a href="/dashboard" class="btn btn-primary">Demo starten</a>
-          <a href="#kontakt" class="btn btn-secondary">Kontakt</a>
+      <div class="hero-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;">
+        <div class="hero-content">
+          <h1>Die Zukunft der Telefonrezeption für Zahnarztpraxen</h1>
+          <p class="subheading">
+            24/7 AI-Assistent, der Patienten professionell begrüßt.<br>
+            Keine verpassten Anrufe. Strukturierte Leads im Dashboard.
+          </p>
+          <div class="button-group">
+            <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+            <a href="#contact" class="btn btn-secondary">Kontakt aufnehmen</a>
+          </div>
+        </div>
+        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(0, 200, 150, 0.3); padding: 2rem; border-radius: 1rem; backdrop-filter: blur(10px); text-align: center; color: #cbd5e1;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+          <p style="font-size: 0.95rem; margin-bottom: 1.5rem;">Dashboard mit allen Anrufen und Leads in Echtzeit</p>
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 0.5rem; font-size: 0.85rem;">
+            <div style="margin-bottom: 0.75rem;">✓ Alle Leads strukturiert</div>
+            <div style="margin-bottom: 0.75rem;">✓ Akute Fälle hervorgehoben</div>
+            <div>✓ Echtzeit-Benachrichtigungen</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1490,107 +1601,90 @@ app.get('/', (req, res) => {
   <!-- How It Works -->
   <section class="how-it-works">
     <div class="container">
-      <h2>Wie es funktioniert</h2>
+      <h2>So funktioniert Selaro</h2>
       <div class="steps-container">
         <div class="step">
           <div class="step-number">1</div>
-          <h3>Patient ruft an</h3>
-          <p>AI antwortet sofort auf eingehende Anrufe 24/7, auch außerhalb der Öffnungszeiten.</p>
+          <h3>Patient ruft in der Praxis an</h3>
+          <p>Ein Patient wählt Ihre Zahnarztpraxis an.</p>
         </div>
-        
         <div class="step">
           <div class="step-number">2</div>
-          <h3>Daten erfassen</h3>
-          <p>Die KI sammelt alle erforderlichen Patientendaten automatisch und intelligent.</p>
+          <h3>AI-Assistent nimmt an und stellt Fragen</h3>
+          <p>Selaro beantwortet sofort mit einer freundlichen Begrüßung und sammelt alle wichtigen Informationen.</p>
         </div>
-        
         <div class="step">
           <div class="step-number">3</div>
-          <h3>Lead im Dashboard</h3>
-          <p>Vollständige Patienteninformationen erscheinen sofort in Ihrem Selaro-Dashboard.</p>
+          <h3>Vollständiger Lead im Dashboard</h3>
+          <p>Ein strukturierter Lead mit Namen, Grund, Dringlichkeit und Terminwunsch erscheint sofort in Ihrem System.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Features Grid -->
+  <!-- For Dental Clinics -->
+  <section class="built-for">
+    <div class="container">
+      <h2>Speziell für Zahnarztpraxen gemacht</h2>
+      <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+        <div class="feature-card">
+          <div class="feature-icon">🚨</div>
+          <h3>Akute Zahnschmerzen erkennen</h3>
+          <p>Unterscheidet zwischen akuten Schmerzen und regulären Terminen. Notfälle werden automatisch priorisiert.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🦷</div>
+          <h3>Prophylaxe & Kontrolle verstehen</h3>
+          <p>Erkennnt Zahnreinigungen, Kontrolltermine und spezifische zahnmedizinische Begriffe.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Versicherungsstatus erfragen</h3>
+          <p>Fragt automatisch nach Versicherungstyp (gesetzlich/privat) für bessere Kommunikation mit Patienten.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Individuelle Praxisanweisungen</h3>
+          <p>Personalisiert nach Öffnungszeiten, Preisen und Tonalität Ihrer Praxis. Jede Praxis ist einzigartig.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Grid -->
   <section class="features">
     <div class="container">
-      <h2>8 Premium Features für Zahnarztpraxen</h2>
+      <h2>Features im Überblick</h2>
       <div class="feature-grid">
         <div class="feature-card">
           <div class="feature-icon">📞</div>
-          <h3>24/7 Telefonannahme</h3>
-          <p>Nie wieder verpasste Anrufe. Ihre KI-Rezeptionistin antwortet rund um die Uhr.</p>
+          <h3>24/7 Erreichbarkeit</h3>
+          <p>Antwortet rund um die Uhr, auch nachts und am Wochenende.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✅</div>
+          <h3>Keine verpassten Anrufe</h3>
+          <p>Jeder Anruf wird beantwortet. Keine volle Mailbox, keine verlorenen Patienten.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">📋</div>
           <h3>Vollständige Patientendaten</h3>
-          <p>Name, Telefon, Grund und Wunschtermin werden automatisch erfasst.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🚨</div>
-          <h3>Akut-Erkennung</h3>
-          <p>Zahnschmerzen und Notfälle werden automatisch als dringend markiert.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">📅</div>
-          <h3>Automatische Terminwünsche</h3>
-          <p>Patienten können ihre bevorzugten Zeiten mitteilen.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🌍</div>
-          <h3>Mehrsprachige Begrüßung</h3>
-          <p>Flexible Sprachunterstützung für diverse Patientengruppen.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔒</div>
-          <h3>DSGVO-konform</h3>
-          <p>Vollständige Datenschutzkonformität und sichere Speicherung.</p>
+          <p>Name, Telefon, Grund und Wunschtermin werden vollautomatisch erfasst.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">⚡</div>
-          <h3>Sofortige Lead-Benachrichtigung</h3>
-          <p>Ihr Team wird sofort über neue Anfragen informiert.</p>
+          <h3>Priorisierung von Schmerzpatienten</h3>
+          <p>Akutfälle werden automatisch erkannt und markiert für schnelle Bearbeitung.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">⚙️</div>
-          <h3>Individuelle Anweisungen</h3>
-          <p>Personalisierte Grüße und Anweisungen für jede Praxis.</p>
+          <div class="feature-icon">🔒</div>
+          <h3>DSGVO-konforme Datenspeicherung</h3>
+          <p>Vollständige Einhaltung aller Datenschutzbestimmungen. Sichere Verschlüsselung.</p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Built For Dental Clinics -->
-  <section class="built-for">
-    <div class="container">
-      <h2>Speziell für Zahnarztpraxen entwickelt</h2>
-      <p class="built-for-subtitle">Selaro versteht die Besonderheiten einer Zahnarztpraxis</p>
-      <div class="built-for-grid">
-        <div class="built-for-item">
-          <div class="icon">🕐</div>
-          <p>Öffnungszeiten verstehen</p>
-        </div>
-        <div class="built-for-item">
-          <div class="icon">🦷</div>
-          <p>Zahnfachbegriffe erkennen</p>
-        </div>
-        <div class="built-for-item">
-          <div class="icon">📊</div>
-          <p>Dringlichkeit bewerten</p>
-        </div>
-        <div class="built-for-item">
-          <div class="icon">🛡️</div>
-          <p>Versicherungstypen erfassen</p>
-        </div>
-        <div class="built-for-item">
-          <div class="icon">📞</div>
-          <p>Personalisierte Grüße</p>
-        </div>
-        <div class="built-for-item">
-          <div class="icon">✅</div>
-          <p>Automatische Leads</p>
+        <div class="feature-card">
+          <div class="feature-icon">🔗</div>
+          <h3>Einfache Integration</h3>
+          <p>Funktioniert mit Ihren bestehenden Abläufen. Keine komplizierten Umbauten nötig.</p>
         </div>
       </div>
     </div>
@@ -1599,60 +1693,66 @@ app.get('/', (req, res) => {
   <!-- Live Demo Section -->
   <section class="demo-section">
     <div class="container">
-      <h2>Probieren Sie die AI-Rezeption jetzt aus</h2>
-      <div class="phone-mockup">
-        <div class="phone-content">
-          <div class="wave"></div>
-          <div class="wave" style="animation-delay: 0.2s;"></div>
-          <div class="wave" style="animation-delay: 0.4s;"></div>
-          <div class="wave" style="animation-delay: 0.6s;"></div>
-          <div class="wave" style="animation-delay: 0.8s;"></div>
+      <h2>Hören Sie, wie sich die AI-Rezeption anhört</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;">
+        <div style="color: rgba(255, 255, 255, 0.9);">
+          <p style="font-size: 1.05rem; margin-bottom: 1.5rem; line-height: 1.7;">
+            Erleben Sie live, wie professionell und natürlich unsere KI-Rezeption klingt. Völlig auf Deutsch, mit einfühlsamer Tonalität und vollständiger Geduld für Ihre Patienten.
+          </p>
+          <a href="/simulate" class="btn btn-primary">Telefon-Demo starten →</a>
         </div>
-      </div>
-      <a href="/dashboard" class="btn btn-primary demo-btn">Demo starten</a>
-    </div>
-  </section>
-
-  <!-- Call Summary Example -->
-  <section class="summary-section">
-    <div class="container">
-      <h2>Beispiel: Erfasste Lead-Daten</h2>
-      <div class="summary-card">
-        <div class="summary-row">
-          <span class="summary-label">Name</span>
-          <span class="summary-value">Maria Schmidt</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Telefon</span>
-          <span class="summary-value">+49 123 456789</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Grund</span>
-          <span class="summary-value">Zahnschmerzen</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Dringlichkeit</span>
-          <span class="summary-value">🚨 Akut</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Versicherung</span>
-          <span class="summary-value">Gesetzlich</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Wunschtermin</span>
-          <span class="summary-value">Heute 14:00</span>
+        <div style="text-align: center;">
+          <div class="phone-mockup">
+            <div class="phone-content">
+              <div class="wave"></div>
+              <div class="wave" style="animation-delay: 0.2s;"></div>
+              <div class="wave" style="animation-delay: 0.4s;"></div>
+              <div class="wave" style="animation-delay: 0.6s;"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Dashboard Preview -->
+  <!-- Leads Dashboard Preview -->
   <section class="dashboard-preview">
     <div class="container">
-      <h2>Leads Dashboard Preview</h2>
+      <h2>Alle Anrufe in einem klaren Dashboard</h2>
+      <p style="text-align: center; color: #cbd5e1; margin-bottom: 2rem; max-width: 700px; margin-left: auto; margin-right: auto;">
+        Jeder Anruf wird zu einem strukturierten Lead. Sehen Sie auf einen Blick: Name, Grund, Dringlichkeit und wann der Anruf eingegangen ist.
+      </p>
       <div class="preview-box">
-        📊 Alle erfassten Leads auf einen Blick <br>
-        Mit Status, Dringlichkeit und Timeline für automatische Verwaltung.
+        <table style="width: 100%; font-size: 0.9rem;">
+          <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+            <td style="padding: 0.75rem; color: #00C896; font-weight: 600;">Name</td>
+            <td style="padding: 0.75rem; color: #e2e8f0;">Grund</td>
+            <td style="padding: 0.75rem; color: #e2e8f0;">Dringlichkeit</td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">Zeit</td>
+            <td style="padding: 0.75rem; color: #e2e8f0;">Status</td>
+          </tr>
+          <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+            <td style="padding: 0.75rem; color: #f1f5f9;">Maria Schmidt</td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">Zahnschmerzen</td>
+            <td style="padding: 0.75rem;"><span style="background: #dc2626; color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem;">🚨 Akut</span></td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">14:30</td>
+            <td style="padding: 0.75rem; color: #00C896;">Neu</td>
+          </tr>
+          <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+            <td style="padding: 0.75rem; color: #f1f5f9;">Thomas Müller</td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">Zahnreinigung</td>
+            <td style="padding: 0.75rem;"><span style="background: #00C896; color: #0f172a; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem;">Normal</span></td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">14:15</td>
+            <td style="padding: 0.75rem; color: #94a3b8;">In Bearbeitung</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.75rem; color: #f1f5f9;">Julia Weber</td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">Kontrolle</td>
+            <td style="padding: 0.75rem;"><span style="background: #00C896; color: #0f172a; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem;">Normal</span></td>
+            <td style="padding: 0.75rem; color: #cbd5e1;">14:05</td>
+            <td style="padding: 0.75rem; color: #94a3b8;">Abgeschlossen</td>
+          </tr>
+        </table>
       </div>
     </div>
   </section>
@@ -1660,27 +1760,27 @@ app.get('/', (req, res) => {
   <!-- Benefits -->
   <section class="benefits">
     <div class="container">
-      <h2>Ihre Vorteile mit Selaro</h2>
+      <h2>Warum Praxen Selaro einsetzen</h2>
       <div class="benefits-grid">
         <div class="benefit-card">
-          <div class="benefit-icon">✨</div>
-          <h3>Keine verpassten Anrufe</h3>
-          <p>24/7 Anrufbehandlung, auch nachts und am Wochenende.</p>
+          <div class="benefit-icon">😌</div>
+          <h3>Weniger Stress am Telefon</h3>
+          <p>Ihre Rezeptionistin muss sich nicht mit hundert Anrufen täglich herumschlagen.</p>
         </div>
         <div class="benefit-card">
-          <div class="benefit-icon">👥</div>
-          <h3>Entlastung des Teams</h3>
-          <p>Ihre Rezeptionistin konzentriert sich auf persönliche Beratung.</p>
+          <div class="benefit-icon">🤝</div>
+          <h3>Besser informierte Patienten</h3>
+          <p>Patienten erhalten sofort professionelle Antworten zu Öffnungszeiten und Leistungen.</p>
         </div>
         <div class="benefit-card">
-          <div class="benefit-icon">😊</div>
-          <h3>Höhere Patientenzufriedenheit</h3>
-          <p>Sofortige Begrüßung und professionelle Betreuung rund um die Uhr.</p>
+          <div class="benefit-icon">📊</div>
+          <h3>Klare Übersicht für das Team</h3>
+          <p>Strukturierte Leads im Dashboard ermöglichen schnelle und organisierte Nachfassung.</p>
         </div>
         <div class="benefit-card">
-          <div class="benefit-icon">⚡</div>
-          <h3>Sofortige Dokumentation</h3>
-          <p>Alle Patientendaten werden automatisch erfasst und gespeichert.</p>
+          <div class="benefit-icon">⏰</div>
+          <h3>Mehr Zeit für Behandlungen</h3>
+          <p>Das gesamte Team konzentriert sich auf das, was zählt: die Patientenbehandlung.</p>
         </div>
       </div>
     </div>
@@ -1689,7 +1789,8 @@ app.get('/', (req, res) => {
   <!-- Integrations -->
   <section class="integrations">
     <div class="container">
-      <h2>Kompatible Systeme</h2>
+      <h2>Integrationen mit Ihren Systemen</h2>
+      <p style="text-align: center; color: #cbd5e1; margin-bottom: 2rem;">Integration mit Ihren bestehenden Systemen (coming soon)</p>
       <div class="integrations-grid">
         <div class="integration-item">
           <div class="logo">🔵</div>
@@ -1723,28 +1824,28 @@ app.get('/', (req, res) => {
   <!-- Testimonials -->
   <section class="testimonials">
     <div class="container">
-      <h2>Stimmen aus Zahnarztpraxen</h2>
+      <h2>Was Praxen über Selaro sagen</h2>
       <div class="testimonials-grid">
         <div class="testimonial-card">
           <div class="testimonial-quote">
-            "Selaro hat uns viele verpasste Anrufe gespart. Die Patienten sind begeistert von der professionellen Begrüßung!"
+            "Selaro hat unsere Telefonbeantworter-Situation komplett revolutioniert. Patienten sind immer sofort verbunden, und alle Daten sind perfekt organisiert."
           </div>
-          <div class="testimonial-author">Dr. Meyer</div>
-          <div class="testimonial-role">Zahnarztpraxis Berlin</div>
+          <div class="testimonial-author">Dr. Müller</div>
+          <div class="testimonial-role">Zahnarztpraxis Leipzig</div>
         </div>
         <div class="testimonial-card">
           <div class="testimonial-quote">
-            "Die Datenerfassung spart uns täglich Stunden Arbeit. Alle Informationen sind sofort im System."
+            "Die KI versteht wirklich, was eine Zahnpraxis braucht. Zahnschmerzen werden erkannt, und unser Team kann sich auf wichtigere Aufgaben konzentrieren."
           </div>
-          <div class="testimonial-author">Petra Schmidt</div>
+          <div class="testimonial-author">Petra Hoffmann</div>
+          <div class="testimonial-role">Praxismanagerin Dresden</div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            "Seit wir Selaro nutzen, verpassen wir keinen Anruf mehr. Das ist wie einen Assistenten zu haben, der rund um die Uhr arbeitet – ohne Müdigkeit."
+          </div>
+          <div class="testimonial-author">Dr. Klein</div>
           <div class="testimonial-role">Zahnarztpraxis München</div>
-        </div>
-        <div class="testimonial-card">
-          <div class="testimonial-quote">
-            "Unsere Patientenzufriedenheit ist gestiegen. Die AI antwortet freundlich und professionell."
-          </div>
-          <div class="testimonial-author">Dr. Weber</div>
-          <div class="testimonial-role">Zahnarztpraxis Hamburg</div>
         </div>
       </div>
     </div>
@@ -1756,22 +1857,37 @@ app.get('/', (req, res) => {
       <h2>Flexible Preismodelle</h2>
       <div class="pricing-grid">
         <div class="pricing-card">
-          <h3>Starter</h3>
+          <h3>Demo</h3>
           <div class="pricing-price">0€</div>
-          <div class="pricing-desc">Demo Modus – Vollständig kostenfrei testen</div>
-          <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+          <div class="pricing-desc">Begrenzte Testphase – Vollständig kostenlos</div>
+          <div style="margin-top: 1.5rem; font-size: 0.95rem; color: #cbd5e1;">
+            <div style="margin-bottom: 0.5rem;">✓ 30 Tage kostenlos</div>
+            <div style="margin-bottom: 0.5rem;">✓ Vollständige Demo-Funktionen</div>
+            <div style="margin-bottom: 0.5rem;">✓ Basis-Support</div>
+            <div>✓ Keine Kreditkarte erforderlich</div>
+          </div>
         </div>
         <div class="pricing-card">
           <h3>Professional</h3>
-          <div class="pricing-price">TBD</div>
-          <div class="pricing-desc">Für wachsende Praxen – Bitte Kontakt aufnehmen</div>
-          <a href="#kontakt" class="btn btn-secondary">Kontakt</a>
+          <div class="pricing-price">Preis auf Anfrage</div>
+          <div class="pricing-desc">Für etablierte Praxen</div>
+          <div style="margin-top: 1.5rem; font-size: 0.95rem; color: #cbd5e1;">
+            <div style="margin-bottom: 0.5rem;">✓ Unbegrenzte Anrufe</div>
+            <div style="margin-bottom: 0.5rem;">✓ Erweiterte Anpassung</div>
+            <div style="margin-bottom: 0.5rem;">✓ Prioritäts-Support</div>
+            <div>✓ Integrations-Roadmap</div>
+          </div>
         </div>
         <div class="pricing-card">
           <h3>Enterprise</h3>
-          <div class="pricing-price">TBD</div>
-          <div class="pricing-desc">Maßgeschneiderte Lösungen – Individuelle Beratung</div>
-          <a href="#kontakt" class="btn btn-secondary">Kontakt</a>
+          <div class="pricing-price">Individuell</div>
+          <div class="pricing-desc">Maßgeschneiderte Lösungen</div>
+          <div style="margin-top: 1.5rem; font-size: 0.95rem; color: #cbd5e1;">
+            <div style="margin-bottom: 0.5rem;">✓ Benutzerdefinierte Features</div>
+            <div style="margin-bottom: 0.5rem;">✓ Dedizierter Account Manager</div>
+            <div style="margin-bottom: 0.5rem;">✓ SLA-Garantien</div>
+            <div>✓ Spezial-Integrationen</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1780,15 +1896,25 @@ app.get('/', (req, res) => {
   <!-- FAQ -->
   <section class="faq">
     <div class="container">
-      <h2>Häufig gestellte Fragen</h2>
+      <h2>Häufige Fragen</h2>
       <div class="faq-container">
         <div class="faq-item">
           <div class="faq-question">
-            <span>Wie lange dauert die Einrichtung?</span>
+            <span>Wie funktioniert die Integration?</span>
             <span class="faq-toggle">▼</span>
           </div>
           <div class="faq-answer">
-            Die Einrichtung dauert in der Regel 24-48 Stunden. Sie verbinden einfach Ihre Telefonnummer mit Selaro und wir kümmern uns um den Rest.
+            Sie verbinden einfach Ihre Zahnarztpraxis-Telefonnummer mit Selaro. Wir kümmern uns um den technischen Setup (typisch 24-48 Stunden). Keine Softwareinstallation nötig.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Brauchen wir neue Telefonnummern?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Nein. Sie behalten Ihre bestehende Nummer. Wir leiten eingehende Anrufe einfach an Selaro weiter, die dann das Gespräch übernimmt.
           </div>
         </div>
 
@@ -1798,69 +1924,83 @@ app.get('/', (req, res) => {
             <span class="faq-toggle">▼</span>
           </div>
           <div class="faq-answer">
-            Ja, Selaro erfüllt alle DSGVO-Anforderungen. Alle Patientendaten werden verschlüsselt und sicher gespeichert. Mehr Details finden Sie in unserer Datenschutzerklärung.
+            Ja, vollständig. Alle Patientendaten werden verschlüsselt und nach den strengsten DSGVO-Standards behandelt. Wir sind zertifiziert und regelmäßig auditiert.
           </div>
         </div>
 
         <div class="faq-item">
           <div class="faq-question">
-            <span>Kann ich die KI-Anweisungen anpassen?</span>
+            <span>Wie lange dauert die Einrichtung?</span>
             <span class="faq-toggle">▼</span>
           </div>
           <div class="faq-answer">
-            Ja, Selaro bietet vollständig personalisierbare Anweisungen. Sie können die Begrüßung, Fragen und Handhabung von Akutfällen an Ihre Praxis anpassen.
+            Etwa 24-48 Stunden nach Vertragsunterzeichnung. Wir kümmern uns um alle technischen Schritte. Sie müssen nur Ihre Praxisinformationen bereitstellen.
           </div>
         </div>
 
         <div class="faq-item">
           <div class="faq-question">
-            <span>Funktioniert Selaro mit meinem Telefonsystem?</span>
+            <span>Kann die KI mehrsprachig antworten?</span>
             <span class="faq-toggle">▼</span>
           </div>
           <div class="faq-answer">
-            Selaro ist kompatibel mit den meisten modernen Telefonsystemen. Kontaktieren Sie uns, um zu prüfen, ob es mit Ihrer Einrichtung funktioniert.
+            Ja. Selaro kann auf Deutsch, Englisch und anderen Sprachen antworten. Die Sprache wird automatisch erkannt oder kann vorkonfiguriert werden.
           </div>
         </div>
 
         <div class="faq-item">
           <div class="faq-question">
-            <span>Wie werden die erfassten Daten exportiert?</span>
+            <span>Was passiert bei Anrufen nach Feierabend?</span>
             <span class="faq-toggle">▼</span>
           </div>
           <div class="faq-answer">
-            Alle Leads können im Dashboard in verschiedenen Formaten exportiert werden. Sie können auch eine API für Integration nutzen.
+            Selaro beantwortet alle Anrufe 24/7. Sie können Ihre Öffnungszeiten konfigurieren, damit die KI weiß, wann die Praxis offen ist – und dementsprechend antwortet.
           </div>
         </div>
 
         <div class="faq-item">
           <div class="faq-question">
-            <span>Gibt es einen Kundensupport?</span>
+            <span>Können wir mit der KI chatten?</span>
             <span class="faq-toggle">▼</span>
           </div>
           <div class="faq-answer">
-            Ja, wir bieten Kundensupport per Email und Telefon. Unser Team hilft Ihnen bei Fragen und Problemen.
+            Im Demo-Modus kann man die KI via Chat testen. Im Live-Betrieb erfolgt die Kommunikation primär über Telefonanrufe – das ist der Hauptzweck von Selaro.
           </div>
         </div>
+      </div>
+    </div>
+  </section>
 
-        <div class="faq-item">
-          <div class="faq-question">
-            <span>Kann ich die Demo kostenlos testen?</span>
-            <span class="faq-toggle">▼</span>
+  <!-- Contact Section -->
+  <section id="contact">
+    <div class="container">
+      <h2>Bereit für eine persönliche Demo?</h2>
+      <div class="contact-wrapper">
+        <p class="contact-text">
+          Erfahren Sie live, wie Selaro Ihre Zahnarztpraxis revolutioniert. Wir zeigen Ihnen alles und beantworten alle Ihre Fragen.
+        </p>
+        <form class="contact-form" onsubmit="handleContactForm(event)">
+          <div class="form-group">
+            <label for="name">Ihr Name</label>
+            <input type="text" id="name" name="name" required placeholder="z.B. Dr. Müller">
           </div>
-          <div class="faq-answer">
-            Ja, Sie können Selaro vollständig kostenlos in unserem Demo-Modus testen. Kreditkarte nicht erforderlich.
+          <div class="form-group">
+            <label for="email">E-Mail</label>
+            <input type="email" id="email" name="email" required placeholder="praxis@zahnarzt.de">
           </div>
-        </div>
-
-        <div class="faq-item">
-          <div class="faq-question">
-            <span>Was ist das Limit für Anrufe?</span>
-            <span class="faq-toggle">▼</span>
+          <div class="form-group">
+            <label for="clinic">Name der Praxis</label>
+            <input type="text" id="clinic" name="clinic" required placeholder="z.B. Zahnarztpraxis Leipzig">
           </div>
-          <div class="faq-answer">
-            Es gibt kein Limit für die Anzahl der Anrufe. Sie zahlen nur für die Anrufe, die tatsächlich durch Selaro bearbeitet werden.
+          <div class="form-group">
+            <label for="message">Nachricht</label>
+            <textarea id="message" name="message" placeholder="Ihre Fragen oder Anforderungen..."></textarea>
           </div>
-        </div>
+          <div class="contact-buttons">
+            <button type="submit" class="btn btn-primary">Nachricht senden</button>
+            <a href="mailto:kontakt@selaro.de?subject=Selaro%20Demo%20Anfrage" class="btn btn-secondary" style="text-align: center;">E-Mail öffnen</a>
+          </div>
+        </form>
       </div>
     </div>
   </section>
