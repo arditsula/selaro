@@ -598,82 +598,216 @@ async function saveLead({ name, phone, reason, preferredTime, urgency, requested
 }
 
 /**
- * Unified system prompt for AI receptionist (used in both Twilio and simulator)
- * State-machine based receptionist with strict field tracking
+ * Extract memory object from conversation history
+ * Tracks: name, phone, reason, urgency, preferred_time, patient_type, insurance_status
  */
-function buildSystemPrompt(clinicName, clinicInstructions) {
-  return `You are a German receptionist for ${clinicName}.
+function extractMemoryFromConversation(messages, lastUserMessage) {
+  const allText = messages.map(m => m.content).join(' ') + ' ' + (lastUserMessage || '');
+  const lowerText = allText.toLowerCase();
+  
+  const memory = {
+    name: null,
+    phone: null,
+    reason: null,
+    urgency: null,
+    preferred_time: null,
+    patient_type: null,
+    insurance_status: null
+  };
+  
+  // Extract name (look for patterns like "Ich bin X" or "Ich heiße X" or "Name: X")
+  const namePatterns = [
+    /ich (?:bin|heiße|bin der|bin die)\s+([A-ZÄÖÜa-zäöü\s\-]+?)(?:\.|,|\n|das ist|mein|meine|telefon|die nummer)/i,
+    /name[:\s]+([A-ZÄÖÜa-zäöü\s\-]+?)(?:\.|,|\n)/i
+  ];
+  for (const pattern of namePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      memory.name = match[1].trim();
+      break;
+    }
+  }
+  
+  // Extract phone (patterns for German phone numbers)
+  const phonePattern = /(\d{3,4}\s*\d{3,8}|\d{1,4}\s*\d{1,4}\s*\d{1,4}|\+49[\d\s]{8,})/g;
+  const phoneMatches = allText.match(phonePattern);
+  if (phoneMatches) {
+    memory.phone = phoneMatches[0].trim();
+  }
+  
+  // Extract reason (pain keywords, procedures, etc.)
+  const painKeywords = ['schmerzen', 'zahnschmerzen', 'weh', 'tut weh', 'schwellung', 'entzündung', 'notfall', 'akut'];
+  const procedureKeywords = ['kontrolle', 'untersuchung', 'zahnreinigung', 'putzen', 'prophylaxe', 'bleaching'];
+  
+  for (const keyword of painKeywords) {
+    if (lowerText.includes(keyword)) {
+      const match = allText.match(new RegExp(`(?:ich habe|wegen|grund|weil|das problem ist)[^.]*${keyword}[^.]*`, 'i'));
+      if (match) {
+        memory.reason = match[0].trim();
+        memory.urgency = 'akut';
+        break;
+      }
+    }
+  }
+  
+  if (!memory.reason) {
+    for (const keyword of procedureKeywords) {
+      if (lowerText.includes(keyword)) {
+        const match = allText.match(new RegExp(`(?:ich möchte|ich brauche|grund|wegen|weil)[^.]*${keyword}[^.]*`, 'i'));
+        if (match) {
+          memory.reason = match[0].trim();
+          break;
+        }
+      }
+    }
+  }
+  
+  // Extract urgency
+  const urgentKeywords = ['schmerzen', 'pochend', 'schwellung', 'entzündung', 'notfall', 'akut', 'schnell', 'dringend'];
+  if (urgentKeywords.some(kw => lowerText.includes(kw))) {
+    memory.urgency = 'akut';
+  } else {
+    memory.urgency = 'normal';
+  }
+  
+  // Extract preferred time (morgen, nächste woche, heute, etc.)
+  const timePatterns = [
+    /(?:wunsch|möchte|lieber|gerne).*?(?:termin|zeit|kommen|besuch).*?(heute|morgen|übermorgen|nächste woche|nächsten montag|nächsten dienstag|nächsten mittwoch|nächsten donnerstag|nächsten freitag|nächsten samstag|nächsten sonntag|in \d+\s*tagen|am \d{1,2}\.\d{1,2}\.|\d{1,2}\.\d{1,2}\.)/i,
+    /(heute|morgen|übermorgen|nächste woche|in \d+\s*tagen)/i
+  ];
+  for (const pattern of timePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      memory.preferred_time = match[match.length - 1].trim();
+      break;
+    }
+  }
+  
+  // Extract patient type (neu/bestehend)
+  if (lowerText.includes('bin zum ersten mal') || lowerText.includes('bin neu')) {
+    memory.patient_type = 'neu';
+  } else if (lowerText.includes('bin schon patient') || lowerText.includes('bin bereits')) {
+    memory.patient_type = 'bestehend';
+  }
+  
+  return memory;
+}
+
+/**
+ * Determine which fields are still missing from memory
+ */
+function getMissingFields(memory) {
+  const missing = [];
+  const fieldOrder = ['name', 'phone', 'reason', 'preferred_time'];
+  
+  for (const field of fieldOrder) {
+    if (!memory[field]) {
+      missing.push(field);
+    }
+  }
+  
+  return missing;
+}
+
+/**
+ * Build memory context for system prompt
+ */
+function formatMemoryInstructions(memory, missingFields) {
+  const collected = [];
+  if (memory.name) collected.push(`- Name: ${memory.name}`);
+  if (memory.phone) collected.push(`- Telefon: ${memory.phone}`);
+  if (memory.reason) collected.push(`- Grund: ${memory.reason}`);
+  if (memory.urgency) collected.push(`- Dringlichkeit: ${memory.urgency}`);
+  if (memory.preferred_time) collected.push(`- Wunschtermin: ${memory.preferred_time}`);
+  
+  let memoryText = '';
+  if (collected.length > 0) {
+    memoryText = `\nALREADY COLLECTED:\n${collected.join('\n')}`;
+  }
+  
+  let nextField = '';
+  if (missingFields.length > 0) {
+    const fieldNames = {
+      'name': 'the patient\'s full name',
+      'phone': 'the patient\'s phone number',
+      'reason': 'why they are calling (what dental issue)',
+      'preferred_time': 'when they would like to come'
+    };
+    nextField = `\nASK FOR: ${fieldNames[missingFields[0]]} ONLY.\nDO NOT ask for anything else.`;
+  } else {
+    nextField = '\nALL FIELDS COMPLETE - Output LEAD SUMMARY.';
+  }
+  
+  return memoryText + nextField;
+}
+
+/**
+ * Unified system prompt for AI receptionist (used in both Twilio and simulator)
+ * Enhanced with intelligent memory tracking and missing field detection
+ */
+function buildSystemPrompt(clinicName, clinicInstructions, memory, missingFields) {
+  const memoryContext = formatMemoryInstructions(memory, missingFields);
+  
+  return `You are a professional German dental receptionist for ${clinicName}.
 ${clinicInstructions}
 
 ====================================================
-RECEPTIONIST STATE MACHINE - FOLLOW EXACTLY:
+INTELLIGENT RECEPTIONIST - MEMORY-BASED FLOW
 ====================================================
 
-Your ONLY job is to collect EXACTLY these 4 fields:
+Your job is to collect these 4 fields (in this order):
 1) Full Name
 2) Phone Number  
-3) Reason for visit
-4) Preferred time or date
+3) Reason for visit / dental concern
+4) Preferred appointment time
 
-MEMORY RULES (CRITICAL):
-- Once a field is provided by the user, store it internally.
-- Do NOT ask again for any field already provided.
-- If user provides multiple fields at once, capture ALL of them.
-- Only ask for fields that are still missing.
+${memoryContext}
 
-QUESTION BEHAVIOR:
-- Ask ONE question at a time.
-- Ask ONLY for missing fields.
-- If ALL 4 fields are already known, do NOT ask anything.
+MEMORY RULES (MANDATORY):
+- NEVER ask for a field the user already provided
+- NEVER ask for multiple fields in one question
+- ONLY ask for the NEXT missing field
+- If user provides multiple fields at once, acknowledge ALL
+- Be human-like and conversational
 
-WHEN ALL 4 FIELDS ARE KNOWN (CRITICAL):
+INTERACTION STYLE:
+- Keep responses SHORT (max 2 sentences)
+- Always acknowledge what patient said
+- Never repeat the same question
+- Vary your phrasing for politeness:
+  * "Darf ich Ihren Namen erfahren?"
+  * "Wie war nochmal Ihr Name?"
+  * "Ihr Name bitte?"
+- For unclear patient input, clarify politely once, then move on
+
+URGENCY DETECTION:
+If patient mentions: "Schmerzen", "starke Schmerzen", "pochend", "Schwellung", "Entzündung", "Notfall"
+→ Say: "Das klingt nach einem akuten Fall. Damit wir schnell helfen können, nehme ich kurz Ihre Daten auf."
+→ Mark urgency as AKUT
+
+WHEN ALL 4 FIELDS ARE KNOWN:
 ====================================================
-You MUST output this EXACT block and NOTHING ELSE:
+Output this EXACT block and NOTHING ELSE:
 
 LEAD SUMMARY
 Name: <full name>
 Telefon: <phone>
 Grund: <reason>
-Wunschtermin: <preferred time>
+Wunschtermin: <time>
 
-Vielen Dank! Wir haben Ihre Daten notiert. Die Praxis meldet sich zur Terminbestätigung bei Ihnen.
+Vielen Dank! Ich habe alle Daten notiert. Das Praxisteam meldet sich zur Bestätigung bei Ihnen. Einen schönen Tag!
 ====================================================
 
-This block is your FINAL ANSWER. Do not continue the conversation after this.
-
-EXAMPLES:
-
-Example 1 - User provides all fields at once:
-User: "Ich bin Anna Müller, 0341 123456. Ich habe Zahnschmerzen und möchte morgen kommen."
-You: LEAD SUMMARY
-     Name: Anna Müller
-     Telefon: 0341 123456
-     Grund: Zahnschmerzen
-     Wunschtermin: morgen
-
-     Vielen Dank! Wir haben Ihre Daten notiert. Die Praxis meldet sich zur Terminbestätigung bei Ihnen.
-
-Example 2 - User provides fields one by one:
-User: "Ich habe Zahnschmerzen"
-You: "Wie ist Ihr Name?"
-User: "Max Schmidt"
-You: "Telefonnummer?"
-User: "0341 999888"
-You: "Wann möchten Sie kommen?"
-User: "Nächste Woche"
-You: LEAD SUMMARY
-     Name: Max Schmidt
-     Telefon: 0341 999888
-     Grund: Zahnschmerzen
-     Wunschtermin: Nächste Woche
-
-     Vielen Dank! Wir haben Ihre Daten notiert. Die Praxis meldet sich zur Terminbestätigung bei Ihnen.
+UNKNOWN QUESTIONS:
+If patient asks something outside dental scope, reply:
+"Dazu habe ich leider keine gesicherten Informationen. Ich nehme gerne Ihre Daten auf, damit das Team Sie zurückrufen kann."
 
 NEVER:
-- Ask for a field twice
-- Make up appointment times
-- Give prices
-- Continue conversation after outputting LEAD SUMMARY`;
+- Ask for a field twice (check memory!)
+- Give prices or medical advice
+- Make up appointment slots
+- Continue after LEAD SUMMARY
+- Ask multiple questions at once`;
 }
 
 /**
@@ -6714,11 +6848,20 @@ app.post('/api/twilio/voice/step', async (req, res) => {
     
     // FIRST REQUEST (no SpeechResult) - Initialize conversation
     if (!speechResult) {
-      // Initialize conversation state
+      // Initialize conversation state with memory tracking
       conversationStates.set(callSid, {
         messages: [],
         leadSaved: false,
-        fromNumber: fromNumber
+        fromNumber: fromNumber,
+        memory: {
+          name: null,
+          phone: null,
+          reason: null,
+          urgency: null,
+          preferred_time: null,
+          patient_type: null,
+          insurance_status: null
+        }
       });
       
       const twiml = new VoiceResponse();
@@ -6744,7 +6887,16 @@ app.post('/api/twilio/voice/step', async (req, res) => {
       state = {
         messages: [],
         leadSaved: false,
-        fromNumber: fromNumber
+        fromNumber: fromNumber,
+        memory: {
+          name: null,
+          phone: null,
+          reason: null,
+          urgency: null,
+          preferred_time: null,
+          patient_type: null,
+          insurance_status: null
+        }
       };
       conversationStates.set(callSid, state);
     }
@@ -6755,14 +6907,19 @@ app.post('/api/twilio/voice/step', async (req, res) => {
       content: speechResult
     });
     
+    // Extract memory from conversation
+    state.memory = extractMemoryFromConversation(state.messages, speechResult);
+    const missingFields = getMissingFields(state.memory);
+    console.log('🧠 [Twilio] Memory update:', state.memory, '| Missing:', missingFields);
+    
     // Use getClinic() to load clinic data
     const clinic = await getClinic();
     
     // Log to verify fresh instructions are being used
     console.log('📞 [Twilio] AI using clinic instructions:', clinic.instructions?.slice(0, 120));
     
-    // Build unified system prompt
-    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions);
+    // Build unified system prompt with memory context
+    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions, state.memory, missingFields);
     
     // Call OpenAI with full conversation history
     const completion = await openai.chat.completions.create({
@@ -6879,7 +7036,16 @@ app.post('/api/simulate', async (req, res) => {
     if (!state) {
       state = {
         messages: [],
-        leadSaved: false
+        leadSaved: false,
+        memory: {
+          name: null,
+          phone: null,
+          reason: null,
+          urgency: null,
+          preferred_time: null,
+          patient_type: null,
+          insurance_status: null
+        }
       };
       simulatorSessions.set(sid, state);
     }
@@ -6890,14 +7056,19 @@ app.post('/api/simulate', async (req, res) => {
       content: sanitizedMessage
     });
     
+    // Extract memory from conversation
+    state.memory = extractMemoryFromConversation(state.messages, sanitizedMessage);
+    const missingFields = getMissingFields(state.memory);
+    console.log('🧠 Memory update:', state.memory, '| Missing:', missingFields);
+    
     // Use the same getClinic() helper
     const clinic = await getClinic();
     
     // Log to verify fresh instructions are being used
     console.log('💬 [Simulator] AI using clinic instructions:', clinic.instructions?.slice(0, 120));
     
-    // Build unified system prompt (same as Twilio)
-    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions);
+    // Build unified system prompt with memory context
+    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions, state.memory, missingFields);
     
     // Call OpenAI with full conversation history
     const completion = await openai.chat.completions.create({
