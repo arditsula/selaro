@@ -2050,6 +2050,11 @@ app.get('/dashboard', async (req, res) => {
     const openLeads = leads.filter(l => l.status === 'new').length;
     const recentLeads = leads.slice(0, 5);
 
+    // Get today's activities (leads created today, sorted by newest first)
+    const activitiesToday = leads
+      .filter(l => l.created_at >= todayIso)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2298,6 +2303,66 @@ app.get('/dashboard', async (req, res) => {
       color: #6b7280;
     }
 
+    /* Activity Feed Styling */
+    .activity-card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .activity-list {
+      divide-y divide-gray-200;
+    }
+
+    .activity-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem;
+      transition: background 0.15s ease;
+    }
+
+    .activity-item:hover {
+      background: #f9fafb;
+    }
+
+    .activity-item.activity-urgent {
+      background: #fef2f2;
+    }
+
+    .activity-item.activity-urgent:hover {
+      background: #fee2e2;
+    }
+
+    .activity-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      line-height: 1.5;
+    }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 0.25rem;
+    }
+
+    .activity-patient {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    .activity-reason {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 200px;
@@ -2404,6 +2469,36 @@ app.get('/dashboard', async (req, res) => {
             <div class="stat-label">Unbeantwortet</div>
             <div class="stat-number">${openLeads}</div>
           </div>
+        </div>
+      </section>
+
+      <!-- Activity Feed Section -->
+      <section class="activity-feed-section">
+        <h2 class="section-title">Aktivität heute</h2>
+        <div class="activity-card">
+          ${activitiesToday.length > 0 ? `
+            <div class="activity-list">
+              ${activitiesToday.map((activity, index) => {
+                const time = new Date(activity.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                const urgencyClass = activity.urgency === 'akut' ? 'activity-urgent' : 'activity-normal';
+                const urgencyText = activity.urgency === 'akut' ? '(akut)' : '(normal)';
+                return `
+                  <div class="activity-item ${urgencyClass}" ${index < activitiesToday.length - 1 ? 'style="border-bottom: 1px solid #e5e7eb;"' : ''}>
+                    <div class="activity-icon">📞</div>
+                    <div class="activity-content">
+                      <div class="activity-time">${time} · Neue Anfrage</div>
+                      <div class="activity-patient">${activity.name || 'Unbekannt'}</div>
+                      <div class="activity-reason">${activity.concern || activity.reason || 'Grund nicht angegeben'} ${urgencyText}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : `
+            <div class="empty-state">
+              <p>Heute gibt es noch keine Aktivitäten.</p>
+            </div>
+          `}
         </div>
       </section>
 
