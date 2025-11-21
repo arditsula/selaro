@@ -685,6 +685,46 @@ app.get('/', (req, res) => {
       padding: 0 1.5rem;
     }
     
+    /* Navbar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1rem 1.5rem;
+      z-index: 999;
+    }
+
+    .navbar-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .navbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .navbar-logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .navbar-logo-subtitle {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+    }
+
     /* Hero Section */
     .hero {
       min-height: 100vh;
@@ -693,6 +733,7 @@ app.get('/', (req, res) => {
       justify-content: center;
       text-align: center;
       padding: 4rem 1rem;
+      margin-top: 70px;
     }
     
     .hero-content h1 {
@@ -973,6 +1014,19 @@ app.get('/', (req, res) => {
   </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <div class="navbar-logo">
+        <div>
+          <div class="navbar-logo-text">Selaro</div>
+          <div class="navbar-logo-subtitle">AI Reception</div>
+        </div>
+      </div>
+      <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+    </div>
+  </nav>
+
   <!-- Hero Section -->
   <section class="hero">
     <div class="container">
@@ -983,7 +1037,6 @@ app.get('/', (req, res) => {
           erfasst Patientendaten und erstellt Leads – rund um die Uhr.
         </p>
         <div class="button-group">
-          <a href="/simulate" class="btn btn-primary">Demo starten</a>
           <a href="#features" class="btn btn-secondary">Mehr erfahren</a>
         </div>
       </div>
