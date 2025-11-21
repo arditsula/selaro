@@ -2259,50 +2259,68 @@ app.get('/dashboard', async (req, res) => {
       overflow-y: auto;
     }
 
+    /* Shared Card Style */
+    .card-base {
+      background: #fff;
+      border-radius: 1.125rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+
     /* Stats Grid */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
 
     .stat-card {
-      background: white;
-      border-radius: 0.75rem;
       padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      background: #fff;
+      border-radius: 1.125rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     }
 
     .stat-label {
-      font-size: 12px;
+      font-size: 0.9rem;
       color: #6b7280;
-      font-weight: 600;
+      font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 0.5rem;
     }
 
     .stat-number {
-      font-size: 32px;
+      font-size: 1.8rem;
       font-weight: 700;
       color: #111827;
     }
 
-    /* Recent Leads */
+    /* Section Spacing */
     .section-title {
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 1.4rem;
+      font-weight: 600;
       color: #111827;
-      margin-bottom: 1rem;
-      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      margin-top: 0;
+    }
+
+    /* Dashboard Sections */
+    .today-overview,
+    .activity-feed-section,
+    .urgent-cases-section,
+    .appointments-section,
+    .callback-queue-section,
+    .analytics-section,
+    .kanban-section {
+      margin-bottom: 2rem;
     }
 
     .leads-table {
       background: white;
-      border-radius: 0.75rem;
+      border-radius: 1.125rem;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     }
 
     table {
