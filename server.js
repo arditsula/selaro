@@ -2101,6 +2101,11 @@ app.get('/dashboard', async (req, res) => {
       'nicht_erreicht': leads.filter(l => l.status === 'lost').length
     };
 
+    // Get today's acute cases
+    const acuteCasesForWidget = leads
+      .filter(l => l.created_at >= todayIso && l.urgency === 'akut')
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2407,6 +2412,74 @@ app.get('/dashboard', async (req, res) => {
     .activity-reason {
       font-size: 13px;
       color: #6b7280;
+    }
+
+    /* Urgent Cases Widget Styling */
+    .urgent-cases-section {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .urgent-cases-card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border-left: 4px solid #dc2626;
+      overflow: hidden;
+    }
+
+    .urgent-cases-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .urgent-case-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      transition: background 0.15s ease;
+    }
+
+    .urgent-case-item:hover {
+      background: #fef2f2;
+    }
+
+    .urgent-case-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: #dc2626;
+      min-width: 50px;
+      flex-shrink: 0;
+    }
+
+    .urgent-case-content {
+      flex: 1;
+    }
+
+    .urgent-case-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    .urgent-case-reason {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 0.25rem;
+    }
+
+    .urgent-case-phone {
+      font-size: 12px;
+      color: #9ca3af;
+      font-family: 'Courier New', monospace;
+    }
+
+    .urgent-cases-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #6b7280;
+      font-size: 14px;
     }
 
     /* Analytics Styling */
@@ -2817,6 +2890,35 @@ app.get('/dashboard', async (req, res) => {
           ` : `
             <div class="empty-state">
               <p>Heute gibt es noch keine Aktivitäten.</p>
+            </div>
+          `}
+        </div>
+      </section>
+
+      <!-- Urgent Cases Widget -->
+      <section class="urgent-cases-section">
+        <h2 class="section-title">🚨 Akutfälle heute</h2>
+        <div class="urgent-cases-card">
+          ${acuteCasesForWidget.length > 0 ? `
+            <div class="urgent-cases-list">
+              ${acuteCasesForWidget.map((lead, index) => {
+                const time = new Date(lead.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                const phone = lead.phone || 'Keine Nummer';
+                return `
+                  <div class="urgent-case-item" ${index < acuteCasesForWidget.length - 1 ? 'style="border-bottom: 1px solid #fee2e2;"' : ''}>
+                    <div class="urgent-case-time">${time}</div>
+                    <div class="urgent-case-content">
+                      <div class="urgent-case-name">${lead.name || 'Unbekannt'}</div>
+                      <div class="urgent-case-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="urgent-case-phone">${phone}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : `
+            <div class="urgent-cases-empty">
+              <p>Heute wurden keine Akutfälle gemeldet. 👍</p>
             </div>
           `}
         </div>
