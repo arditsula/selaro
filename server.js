@@ -1097,6 +1097,17 @@ app.get('/dashboard', async (req, res) => {
 
     const leads = allLeads || [];
     
+    // Fetch appointments for today
+    const { data: appointmentsData, error: appointmentsError } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('appointment_date', today.toISOString().split('T')[0])
+      .order('appointment_time', { ascending: true });
+
+    const appointments = appointmentsData || [];
+    const todayAppointmentsCount = appointments.length;
+    const upcomingAppointments = appointments.slice(0, 5);
+
     // Compute stats
     const newRequestsToday = leads.filter(l => l.created_at >= todayIso).length;
     const acuteCasesToday = leads.filter(l => l.created_at >= todayIso && l.urgency === 'akut').length;
@@ -1452,6 +1463,42 @@ app.get('/dashboard', async (req, res) => {
           <div class="stat-label">Leads insgesamt</div>
           <div class="stat-number">${leads.length}</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Termine (heute)</div>
+          <div class="stat-number">${todayAppointmentsCount}</div>
+        </div>
+      </div>
+
+      <!-- Heutige Termine -->
+      <h2 class="section-title">Heutige Termine</h2>
+      <div class="leads-table">
+        ${upcomingAppointments.length > 0 ? `
+          <table>
+            <thead>
+              <tr>
+                <th>Uhrzeit</th>
+                <th>Patient</th>
+                <th>Grund</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${upcomingAppointments.map(apt => {
+                const time = apt.appointment_time ? apt.appointment_time.substring(0, 5) : '-';
+                return `
+                  <tr>
+                    <td><strong>${time}</strong></td>
+                    <td>${apt.patient_name || '-'}</td>
+                    <td>${apt.reason || '-'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        ` : `
+          <div class="empty-state">
+            <p>Keine Termine heute</p>
+          </div>
+        `}
       </div>
 
       <!-- Recent Leads -->
@@ -3172,6 +3219,133 @@ app.get('/leads', async (req, res) => {
       cursor: not-allowed;
     }
 
+    /* Appointment Button */
+    .appointment-btn {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 12px;
+      width: 100%;
+    }
+
+    .appointment-btn:hover {
+      background: #5568d3;
+      transform: scale(1.02);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    }
+
+    .modal.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1f2937;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      background: rgba(0, 0, 0, 0.08);
+      border-color: #667eea;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-btn-submit {
+      background: #667eea;
+      color: white;
+    }
+
+    .modal-btn-submit:hover {
+      background: #5568d3;
+    }
+
+    .modal-btn-cancel {
+      background: rgba(0, 0, 0, 0.1);
+      color: #1f2937;
+    }
+
+    .modal-btn-cancel:hover {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
     .toast {
       position: fixed;
       bottom: 20px;
@@ -3348,7 +3522,46 @@ app.get('/leads', async (req, res) => {
           ></textarea>
           <button class="save-btn" id="saveNotesBtn">Notizen speichern</button>
         </div>
+
+        <button class="appointment-btn" id="appointmentBtn">Termin eintragen</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Appointment Modal -->
+  <div class="modal" id="appointmentModal">
+    <div class="modal-content">
+      <div class="modal-header">Termin eintragen</div>
+      <form id="appointmentForm">
+        <div class="form-group">
+          <label class="form-label">Patient</label>
+          <input type="text" class="form-input" id="aptPatientName" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefon</label>
+          <input type="tel" class="form-input" id="aptPhone" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grund</label>
+          <input type="text" class="form-input" id="aptReason" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Datum</label>
+          <input type="date" class="form-input" id="aptDate" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Uhrzeit</label>
+          <input type="time" class="form-input" id="aptTime" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notizen</label>
+          <textarea class="form-textarea" id="aptNotes" placeholder="Optional"></textarea>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="modal-btn modal-btn-cancel" id="cancelAptBtn">Abbrechen</button>
+          <button type="submit" class="modal-btn modal-btn-submit">Speichern</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -3609,6 +3822,77 @@ app.get('/leads', async (req, res) => {
         toast.classList.remove('show');
       }, 3000);
     }
+
+    // Appointment Modal
+    const appointmentModal = document.getElementById('appointmentModal');
+    const appointmentBtn = document.getElementById('appointmentBtn');
+    const cancelAptBtn = document.getElementById('cancelAptBtn');
+    const appointmentForm = document.getElementById('appointmentForm');
+    const aptPatientName = document.getElementById('aptPatientName');
+    const aptPhone = document.getElementById('aptPhone');
+    const aptReason = document.getElementById('aptReason');
+    const aptDate = document.getElementById('aptDate');
+    const aptTime = document.getElementById('aptTime');
+    const aptNotes = document.getElementById('aptNotes');
+
+    appointmentBtn.addEventListener('click', () => {
+      if (!selectedLead) return;
+      aptPatientName.value = selectedLead.name || '';
+      aptPhone.value = selectedLead.phone || '';
+      aptReason.value = selectedLead.concern || selectedLead.reason || '';
+      aptDate.value = '';
+      aptTime.value = '';
+      aptNotes.value = '';
+      appointmentModal.classList.add('show');
+    });
+
+    cancelAptBtn.addEventListener('click', () => {
+      appointmentModal.classList.remove('show');
+    });
+
+    appointmentModal.addEventListener('click', (e) => {
+      if (e.target === appointmentModal) {
+        appointmentModal.classList.remove('show');
+      }
+    });
+
+    appointmentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      try {
+        const response = await fetch('/api/appointments/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lead_id: selectedLead.id,
+            patient_name: aptPatientName.value,
+            phone: aptPhone.value,
+            reason: aptReason.value,
+            appointment_date: aptDate.value,
+            appointment_time: aptTime.value,
+            notes: aptNotes.value
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+          showToast('Termin gespeichert');
+          appointmentModal.classList.remove('show');
+          
+          // Update lead status if needed
+          if (selectedLead) {
+            selectedLead.status = 'Termin vereinbart';
+            applyFilters();
+          }
+        } else {
+          showToast('Fehler: ' + result.error);
+        }
+      } catch (err) {
+        console.error('Error creating appointment:', err);
+        showToast('Fehler beim Speichern');
+      }
+    });
 
     // Initial render
     renderTable();
@@ -4605,6 +4889,65 @@ app.get('/api/leads', async (req, res) => {
       ok: false,
       error: err.message
     });
+  }
+});
+
+// API endpoint to create an appointment
+app.post('/api/appointments/create', async (req, res) => {
+  try {
+    const { lead_id, patient_name, phone, reason, appointment_date, appointment_time, notes } = req.body;
+
+    // Validate required fields
+    if (!patient_name || !patient_name.trim()) {
+      return res.status(400).json({ ok: false, error: 'Patient name is required' });
+    }
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ ok: false, error: 'Phone is required' });
+    }
+    if (!appointment_date) {
+      return res.status(400).json({ ok: false, error: 'Appointment date is required' });
+    }
+    if (!appointment_time) {
+      return res.status(400).json({ ok: false, error: 'Appointment time is required' });
+    }
+
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'Supabase not configured' });
+    }
+
+    // Insert appointment
+    const { data, error } = await supabase
+      .from('appointments')
+      .insert([{
+        lead_id: lead_id || null,
+        patient_name: patient_name.trim(),
+        phone: phone.trim(),
+        reason: reason ? reason.trim() : null,
+        appointment_date,
+        appointment_time,
+        notes: notes ? notes.trim() : null,
+        status: 'geplant'
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error creating appointment:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    // Optionally update lead status if lead_id exists
+    if (lead_id) {
+      await supabase
+        .from('leads')
+        .update({ status: 'Termin vereinbart' })
+        .eq('id', lead_id)
+        .catch(err => console.error('Note: Could not update lead status:', err));
+    }
+
+    res.json({ ok: true, appointment: data[0] });
+  } catch (err) {
+    console.error('Unexpected error creating appointment:', err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
