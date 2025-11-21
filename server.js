@@ -2381,7 +2381,33 @@ app.get('/dashboard', async (req, res) => {
 
     <!-- Content -->
     <div class="content">
-      <!-- Stats -->
+      <!-- Today Overview Section -->
+      <section class="today-overview">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div style="font-size: 24px; margin-bottom: 0.75rem;">📞</div>
+            <div class="stat-label">Anrufe heute</div>
+            <div class="stat-number">${newRequestsToday}</div>
+          </div>
+          <div class="stat-card">
+            <div style="font-size: 24px; margin-bottom: 0.75rem;">⚠️</div>
+            <div class="stat-label">Akutfälle</div>
+            <div class="stat-number">${acuteCasesToday}</div>
+          </div>
+          <div class="stat-card">
+            <div style="font-size: 24px; margin-bottom: 0.75rem;">📅</div>
+            <div class="stat-label">Termine heute</div>
+            <div class="stat-number">${todayAppointmentsCount}</div>
+          </div>
+          <div class="stat-card">
+            <div style="font-size: 24px; margin-bottom: 0.75rem;">❗</div>
+            <div class="stat-label">Unbeantwortet</div>
+            <div class="stat-number">${openLeads}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional Stats -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Neue Anfragen (heute)</div>
