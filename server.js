@@ -2106,6 +2106,13 @@ app.get('/dashboard', async (req, res) => {
       .filter(l => l.created_at >= todayIso && l.urgency === 'akut')
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+    // Get callback queue (leads needing call-back)
+    const callbackQueueAll = leads
+      .filter(l => l.status === 'callback')
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const callbackQueue = callbackQueueAll.slice(0, 10);
+    const callbackQueueCount = callbackQueueAll.length;
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2547,6 +2554,107 @@ app.get('/dashboard', async (req, res) => {
       padding: 2rem 1rem;
       color: #6b7280;
       font-size: 14px;
+    }
+
+    /* Call-back Queue Styling */
+    .callback-queue-section {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .callback-queue-card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .callback-queue-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .callback-queue-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 1rem;
+      transition: background 0.15s ease;
+    }
+
+    .callback-queue-item:hover {
+      background: #f9fafb;
+    }
+
+    .callback-queue-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      line-height: 1.5;
+    }
+
+    .callback-queue-content {
+      flex: 1;
+    }
+
+    .callback-queue-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .callback-queue-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .callback-urgency-badge {
+      display: inline-block;
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+    }
+
+    .callback-queue-phone {
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      color: #374151;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .callback-queue-reason {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 0.25rem;
+    }
+
+    .callback-queue-time {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .callback-queue-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .callback-queue-more {
+      text-align: center;
+      font-size: 12px;
+      color: #3b82f6;
+      font-weight: 600;
+      padding: 0.75rem;
+      cursor: pointer;
+    }
+
+    .callback-queue-more:hover {
+      color: #2563eb;
     }
 
     /* Analytics Styling */
@@ -3015,6 +3123,46 @@ app.get('/dashboard', async (req, res) => {
           ` : `
             <div class="appointments-empty">
               <p>Für heute sind keine Termine eingetragen.</p>
+            </div>
+          `}
+        </div>
+      </section>
+
+      <!-- Call-back Queue Widget -->
+      <section class="callback-queue-section">
+        <h2 class="section-title">📞 Rückruf-Warteliste</h2>
+        <div class="callback-queue-card">
+          ${callbackQueue.length > 0 ? `
+            <div class="callback-queue-list">
+              ${callbackQueue.map((lead, index) => {
+                const createdTime = new Date(lead.created_at).toLocaleString('de-DE', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  day: '2-digit',
+                  month: '2-digit'
+                });
+                const phone = lead.phone || 'Keine Nummer';
+                const urgencyBadge = lead.urgency === 'akut' ? '<span class="callback-urgency-badge">akut</span>' : '';
+                return `
+                  <div class="callback-queue-item" ${index < callbackQueue.length - 1 ? 'style="border-bottom: 1px solid #e5e7eb;"' : ''}>
+                    <div class="callback-queue-icon">📞</div>
+                    <div class="callback-queue-content">
+                      <div class="callback-queue-header">
+                        <div class="callback-queue-name">${lead.name || 'Unbekannt'}</div>
+                        ${urgencyBadge}
+                      </div>
+                      <div class="callback-queue-phone">${phone}</div>
+                      <div class="callback-queue-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="callback-queue-time">${createdTime}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+              ${callbackQueueCount > 10 ? `<div class="callback-queue-more">+${callbackQueueCount - 10} weitere in der Warteliste</div>` : ''}
+            </div>
+          ` : `
+            <div class="callback-queue-empty">
+              <p>Keine Patienten in der Rückruf-Warteliste.</p>
             </div>
           `}
         </div>
