@@ -725,6 +725,20 @@ app.get('/', (req, res) => {
       font-weight: 400;
     }
 
+    /* Logo Link */
+    .logo-link {
+      display: inline-flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .logo-link:hover {
+      opacity: 0.9;
+    }
+
     /* Hero Section */
     .hero {
       min-height: 100vh;
@@ -905,66 +919,6 @@ app.get('/', (req, res) => {
       font-size: 0.9rem;
     }
     
-    /* Screenshot Section */
-    .screenshot {
-      padding: 6rem 1rem;
-      background: rgba(0, 0, 0, 0.3);
-    }
-    
-    .screenshot h2 {
-      font-size: 2.5rem;
-      text-align: center;
-      margin-bottom: 3rem;
-      color: #f1f5f9;
-    }
-    
-    .screenshot-mockup {
-      max-width: 900px;
-      margin: 0 auto;
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      border: 1px solid rgba(0, 200, 150, 0.3);
-      border-radius: 1rem;
-      padding: 3rem;
-      text-align: center;
-      backdrop-filter: blur(10px);
-    }
-    
-    .mockup-header {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 2rem;
-      justify-content: flex-start;
-    }
-    
-    .mockup-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: rgba(0, 200, 150, 0.5);
-    }
-    
-    .mockup-content {
-      background: rgba(15, 23, 42, 0.8);
-      padding: 2rem;
-      border-radius: 0.5rem;
-      border: 1px solid rgba(148, 163, 184, 0.1);
-      min-height: 300px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    
-    .mockup-element {
-      background: rgba(0, 200, 150, 0.1);
-      padding: 1.5rem;
-      border-radius: 0.5rem;
-      border: 1px dashed rgba(0, 200, 150, 0.3);
-      width: 80%;
-      color: #cbd5e1;
-    }
-    
     /* Footer */
     footer {
       padding: 3rem 1rem;
@@ -1017,12 +971,10 @@ app.get('/', (req, res) => {
   <!-- Navbar -->
   <nav class="navbar">
     <div class="navbar-content">
-      <div class="navbar-logo">
-        <div>
-          <div class="navbar-logo-text">Selaro</div>
-          <div class="navbar-logo-subtitle">AI Reception</div>
-        </div>
-      </div>
+      <a href="/" class="logo-link navbar-logo">
+        <div class="navbar-logo-text">Selaro</div>
+        <div class="navbar-logo-subtitle">AI Reception</div>
+      </a>
       <a href="/dashboard" class="btn btn-primary">Demo starten</a>
     </div>
   </nav>
@@ -1102,26 +1054,6 @@ app.get('/', (req, res) => {
           <div class="step-number">4</div>
           <h3>Im Dashboard</h3>
           <p>Alle erfassten Leads erscheinen sofort in Ihrem Selaro-Dashboard zum Nachfassen.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-  
-  <!-- Screenshot Section -->
-  <section class="screenshot">
-    <div class="container">
-      <h2>Dashboard-Übersicht</h2>
-      <div class="screenshot-mockup">
-        <div class="mockup-header">
-          <div class="mockup-dot"></div>
-          <div class="mockup-dot"></div>
-          <div class="mockup-dot"></div>
-        </div>
-        <div class="mockup-content">
-          <div class="mockup-element">📊 Neue Anfragen (heute): 12</div>
-          <div class="mockup-element">🚨 Akutfälle: 3</div>
-          <div class="mockup-element">📋 Leads insgesamt: 47</div>
-          <div class="mockup-element">⏰ Letzte Anfrage: vor 5 Min.</div>
         </div>
       </div>
     </div>
@@ -1219,11 +1151,17 @@ app.get('/dashboard', async (req, res) => {
       font-size: 18px;
       font-weight: 700;
       margin-bottom: 0.25rem;
+      color: white;
     }
 
     .logo-subtitle {
       font-size: 12px;
       color: rgba(255, 255, 255, 0.6);
+    }
+
+    .sidebar-logo.logo-link {
+      display: flex;
+      flex-direction: column;
     }
 
     .nav-menu {
@@ -1448,10 +1386,10 @@ app.get('/dashboard', async (req, res) => {
 <body>
   <!-- Sidebar -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
+    <a href="/" class="logo-link sidebar-logo">
       <div class="logo-text">Selaro</div>
       <div class="logo-subtitle">AI Reception</div>
-    </div>
+    </a>
     
     <nav>
       <ul class="nav-menu">
