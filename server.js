@@ -65,6 +65,65 @@ if (!emailTransporter) {
 // Clinic ID from environment
 const CLINIC_ID = process.env.CLINIC_ID || 'bc91d95c-a05c-4004-b932-bc393f0391b6';
 
+// ===== INPUT VALIDATION HELPERS =====
+/**
+ * Check if value is a non-empty string after trim
+ */
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * Sanitize string: trim and remove dangerous control characters
+ */
+function sanitizeString(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/[\r\n\t]/g, ' ').substring(0, 5000);
+}
+
+/**
+ * Check if value is a valid phone (simple: contains digits or +, min length 7)
+ */
+function isValidPhone(value) {
+  if (typeof value !== 'string') return false;
+  const cleaned = value.trim();
+  const hasDigits = /\d/.test(cleaned);
+  return hasDigits && cleaned.length >= 7 && cleaned.length <= 20;
+}
+
+/**
+ * Check if value is a valid ISO date or yyyy-mm-dd format
+ */
+function isValidDate(value) {
+  if (typeof value !== 'string') return false;
+  const cleaned = value.trim();
+  const iso = new Date(cleaned);
+  if (isNaN(iso.getTime())) return false;
+  // Check format is roughly correct (yyyy-mm-dd or ISO)
+  return /^\d{4}-\d{2}-\d{2}/.test(cleaned);
+}
+
+/**
+ * Check if value is valid HH:MM time format
+ */
+function isValidTime(value) {
+  if (typeof value !== 'string') return false;
+  return /^\d{2}:\d{2}$/.test(value.trim());
+}
+
+/**
+ * Log validation error with context
+ */
+function logValidationError(req, field, reason) {
+  console.warn('[VALIDATION ERROR]', {
+    path: req.path,
+    method: req.method,
+    field,
+    reason,
+    timestamp: new Date().toISOString()
+  });
+}
+
 // In-memory conversation state management
 // Key: CallSid or sessionId, Value: { messages: [], extractedData: {}, leadSaved: false }
 const conversationStates = new Map();
@@ -4726,15 +4785,18 @@ app.post('/api/leads/update-status', async (req, res) => {
   try {
     const { id, status } = req.body;
     
-    // Validate input
-    if (!id || !status) {
-      return res.status(400).json({ ok: false, error: 'Missing id or status' });
+    // Validate id is non-empty string
+    if (!isNonEmptyString(id)) {
+      logValidationError(req, 'id', 'Lead ID is required');
+      return res.status(400).json({ ok: false, error: 'Invalid lead status update: id required.' });
     }
     
     // Validate status value (whitelist)
-    const validStatuses = ['new', 'in_progress', 'done'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ ok: false, error: 'Invalid status value' });
+    const validStatuses = ['new', 'callback', 'scheduled', 'lost'];
+    const trimmedStatus = sanitizeString(status);
+    if (!validStatuses.includes(trimmedStatus)) {
+      logValidationError(req, 'status', `Invalid status: ${trimmedStatus}, allowed: ${validStatuses.join(',')}`);
+      return res.status(400).json({ ok: false, error: 'Invalid status value.' });
     }
     
     // Check Supabase availability
@@ -4744,8 +4806,8 @@ app.post('/api/leads/update-status', async (req, res) => {
     
     const { data, error } = await supabase
       .from('leads')
-      .update({ status: status })
-      .eq('id', id)
+      .update({ status: trimmedStatus })
+      .eq('id', sanitizeString(id))
       .select();
     
     if (error) {
@@ -4769,13 +4831,14 @@ app.post('/api/leads/update-notes', async (req, res) => {
   try {
     const { id, notes } = req.body;
     
-    // Validate input
-    if (!id) {
-      return res.status(400).json({ ok: false, error: 'Missing id' });
+    // Validate id is non-empty string
+    if (!isNonEmptyString(id)) {
+      logValidationError(req, 'id', 'Lead ID is required for notes update');
+      return res.status(400).json({ ok: false, error: 'Invalid input: lead id required.' });
     }
     
-    // Trim and limit notes length
-    const trimmedNotes = (notes || '').trim().substring(0, 5000);
+    // Sanitize and limit notes length
+    const trimmedNotes = sanitizeString(notes || '').substring(0, 5000);
     
     // Check Supabase availability
     if (!supabase) {
@@ -4785,7 +4848,7 @@ app.post('/api/leads/update-notes', async (req, res) => {
     const { data, error } = await supabase
       .from('leads')
       .update({ notes: trimmedNotes })
-      .eq('id', id)
+      .eq('id', sanitizeString(id))
       .select();
     
     if (error) {
@@ -5951,13 +6014,22 @@ app.post('/api/clinic/update', async (req, res) => {
   try {
     const { name, phone_number, address, instructions } = req.body;
     
-    // Validate input
-    if (!name || !name.trim()) {
-      return res.status(400).json({ ok: false, error: 'Praxisname ist erforderlich' });
+    // Validate clinic name
+    if (!isNonEmptyString(name)) {
+      logValidationError(req, 'name', 'Clinic name is required');
+      return res.status(400).json({ ok: false, error: 'Praxisname ist erforderlich.' });
     }
     
-    if (!phone_number || !phone_number.trim()) {
-      return res.status(400).json({ ok: false, error: 'Telefonnummer ist erforderlich' });
+    // Validate phone number
+    if (!isValidPhone(phone_number)) {
+      logValidationError(req, 'phone_number', 'Invalid phone number format');
+      return res.status(400).json({ ok: false, error: 'Telefonnummer ungültig.' });
+    }
+    
+    // Validate instructions length if provided
+    if (instructions && sanitizeString(instructions).length > 10000) {
+      logValidationError(req, 'instructions', 'Instructions too long (max 10000 chars)');
+      return res.status(400).json({ ok: false, error: 'Anweisungen sind zu lang.' });
     }
     
     // Check Supabase availability
@@ -5971,11 +6043,11 @@ app.post('/api/clinic/update', async (req, res) => {
       return res.status(500).json({ ok: false, error: 'Klinik-ID nicht konfiguriert' });
     }
     
-    // Build update payload
+    // Build update payload with sanitized data
     const updateData = {
-      name: name.trim(),
-      phone_number: phone_number.trim(),
-      instructions: instructions ? instructions.trim() : ''
+      name: sanitizeString(name),
+      phone_number: sanitizeString(phone_number),
+      instructions: instructions ? sanitizeString(instructions) : ''
     };
     
     // Add address if it was provided (and not just "-")
@@ -6650,9 +6722,13 @@ app.post('/api/simulate', async (req, res) => {
     // Expect JSON body: { "message": "some user input text", "sessionId": "optional" }
     const { message, sessionId } = req.body;
     
-    if (!message) {
-      return res.status(400).json({ error: 'Missing "message" field in request body' });
+    // Validate message input
+    if (!isNonEmptyString(message)) {
+      logValidationError(req, 'message', 'Message is required and must be non-empty');
+      return res.status(400).json({ ok: false, error: 'Invalid input: message is required.' });
     }
+    
+    const sanitizedMessage = sanitizeString(message);
     
     // Generate or use existing session ID
     const sid = sessionId || `sim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -6670,7 +6746,7 @@ app.post('/api/simulate', async (req, res) => {
     // Add user message to conversation history
     state.messages.push({
       role: 'user',
-      content: message
+      content: sanitizedMessage
     });
     
     // Use the same getClinic() helper
