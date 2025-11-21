@@ -659,11 +659,11 @@ app.use(express.urlencoded({ extended: false }));
 app.get('/', (req, res) => {
   const html = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Selaro — AI Receptionist for Dental Clinics</title>
+  <title>Selaro – AI Rezeption für Zahnarztpraxen</title>
   <style>
     * {
       margin: 0;
@@ -673,51 +673,62 @@ app.get('/', (req, res) => {
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: linear-gradient(135deg, #f5f7fb 0%, #e8f3f1 100%);
-      color: #1f2937;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
       line-height: 1.6;
       min-height: 100vh;
-      padding: 2rem 1rem;
     }
     
     .container {
-      max-width: 800px;
+      max-width: 1200px;
       margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center;
+      padding: 4rem 1rem;
     }
     
-    h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: #111827;
+    .hero-content h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      color: #f1f5f9;
+      line-height: 1.2;
     }
     
-    .subheading {
-      font-size: 1.125rem;
-      color: #4b5563;
+    .hero-content .subheading {
+      font-size: 1.25rem;
+      color: #cbd5e1;
       margin-bottom: 2.5rem;
-      max-width: 600px;
+      max-width: 700px;
       margin-left: auto;
       margin-right: auto;
+      font-weight: 400;
     }
     
-    .buttons {
+    .button-group {
       display: flex;
       gap: 1rem;
       justify-content: center;
       flex-wrap: wrap;
-      margin-bottom: 3rem;
+      margin-bottom: 1rem;
     }
     
     .btn {
       display: inline-block;
       padding: 1rem 2.5rem;
-      font-size: 1.0625rem;
+      font-size: 1rem;
       font-weight: 600;
       text-decoration: none;
       border-radius: 0.5rem;
-      transition: all 0.2s;
+      transition: all 0.3s ease;
       cursor: pointer;
       border: none;
       outline: none;
@@ -726,364 +737,352 @@ app.get('/', (req, res) => {
     .btn-primary {
       background: #00C896;
       color: white;
-      box-shadow: 0 4px 6px rgba(0, 200, 150, 0.3);
+      box-shadow: 0 10px 25px rgba(0, 200, 150, 0.3);
     }
     
     .btn-primary:hover {
       background: #00b586;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0, 200, 150, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0, 200, 150, 0.4);
     }
     
     .btn-secondary {
-      background: white;
+      background: transparent;
       color: #00C896;
       border: 2px solid #00C896;
     }
     
     .btn-secondary:hover {
-      background: #f0fdf9;
-      transform: translateY(-2px);
+      background: rgba(0, 200, 150, 0.1);
+      transform: translateY(-3px);
     }
     
-    /* Modal Styles */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
+    /* Features Section */
+    .features {
+      padding: 6rem 1rem;
+      background: rgba(0, 0, 0, 0.3);
     }
     
-    .modal-overlay.active {
-      display: flex;
+    #features h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
     }
     
-    .modal {
-      background: white;
-      border-radius: 1rem;
-      max-width: 600px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      position: relative;
-    }
-    
-    .modal-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid #e5e7eb;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .modal-header h2 {
-      font-size: 1.5rem;
-      color: #111827;
-      margin: 0;
-    }
-    
-    .modal-close {
-      background: transparent;
-      border: none;
-      font-size: 1.5rem;
-      color: #6b7280;
-      cursor: pointer;
-      padding: 0.25rem;
-      line-height: 1;
-      width: 2rem;
-      height: 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 0.25rem;
-    }
-    
-    .modal-close:hover {
-      background: #f3f4f6;
-      color: #111827;
-    }
-    
-    .modal-body {
-      padding: 1.5rem;
-      text-align: left;
-    }
-    
-    .flow-step {
-      margin-bottom: 1.5rem;
-      padding: 1rem;
-      background: #f9fafb;
-      border-radius: 0.5rem;
-      border-left: 4px solid #00C896;
-    }
-    
-    .flow-step h3 {
-      font-size: 1.125rem;
-      color: #111827;
-      margin-bottom: 0.5rem;
-    }
-    
-    .flow-step p {
-      color: #4b5563;
-      margin: 0;
-    }
-    
-    .script-box {
-      background: #1f2937;
-      color: #e5e7eb;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      font-family: 'Courier New', monospace;
-      margin-top: 1rem;
-      line-height: 1.8;
-    }
-    
-    .note-box {
-      background: #fef3c7;
-      border: 1px solid #fbbf24;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin-top: 1rem;
-    }
-    
-    .note-box strong {
-      color: #92400e;
-    }
-    
-    /* Status Display */
-    .status-grid {
+    .feature-grid {
       display: grid;
-      gap: 1rem;
-      margin-top: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
     }
     
-    .status-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem 1rem;
-      background: #f9fafb;
-      border-radius: 0.5rem;
-    }
-    
-    .status-label {
-      font-weight: 500;
-      color: #374151;
-    }
-    
-    .status-indicator {
-      font-size: 1.25rem;
-    }
-    
-    .status-ok { color: #10b981; }
-    .status-error { color: #ef4444; }
-    
-    .status-info {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: #eff6ff;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      color: #1e40af;
-    }
-    
-    .loading {
-      text-align: center;
+    .feature-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
       padding: 2rem;
-      color: #6b7280;
+      border-radius: 1rem;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
     }
     
-    footer {
-      margin-top: 4rem;
+    .feature-card:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(0, 200, 150, 0.4);
+      transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      height: 60px;
+    }
+    
+    .feature-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: #f1f5f9;
+    }
+    
+    .feature-card p {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    /* How It Works Section */
+    .how-it-works {
+      padding: 6rem 1rem;
+    }
+    
+    .how-it-works h2 {
+      font-size: 2.5rem;
       text-align: center;
-      color: #6b7280;
-      font-size: 0.875rem;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+    }
+    
+    .steps-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .step {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+      position: relative;
+      text-align: center;
+    }
+    
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      background: #00C896;
+      color: #0f172a;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .step h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+      color: #f1f5f9;
+    }
+    
+    .step p {
+      color: #cbd5e1;
+      font-size: 0.9rem;
+    }
+    
+    /* Screenshot Section */
+    .screenshot {
+      padding: 6rem 1rem;
+      background: rgba(0, 0, 0, 0.3);
+    }
+    
+    .screenshot h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+    }
+    
+    .screenshot-mockup {
+      max-width: 900px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      border-radius: 1rem;
+      padding: 3rem;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    
+    .mockup-header {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      justify-content: flex-start;
+    }
+    
+    .mockup-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(0, 200, 150, 0.5);
+    }
+    
+    .mockup-content {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 2rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    
+    .mockup-element {
+      background: rgba(0, 200, 150, 0.1);
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      border: 1px dashed rgba(0, 200, 150, 0.3);
+      width: 80%;
+      color: #cbd5e1;
+    }
+    
+    /* Footer */
+    footer {
+      padding: 3rem 1rem;
+      text-align: center;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+    
+    footer a {
+      color: #00C896;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    footer a:hover {
+      color: #00b586;
     }
     
     @media (max-width: 768px) {
-      h1 {
+      .hero-content h1 {
         font-size: 2rem;
       }
       
-      .buttons {
+      .hero-content .subheading {
+        font-size: 1rem;
+      }
+      
+      .button-group {
         flex-direction: column;
       }
       
       .btn {
         width: 100%;
       }
+      
+      #features h2,
+      .how-it-works h2,
+      .screenshot h2 {
+        font-size: 1.75rem;
+      }
+      
+      .mockup-element {
+        width: 95%;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Selaro — AI Receptionist for Dental Clinics</h1>
-    <p class="subheading">
-      Never miss a patient call. Our AI receptionist answers in German, captures appointment details, 
-      and stores leads automatically—even after hours.
-    </p>
-    
-    <div class="buttons">
-      <a href="/simulate" class="btn btn-primary">Try Receptionist Demo</a>
-      <button class="btn btn-secondary" onclick="openSimulateModal()">How It Works</button>
-      <button class="btn btn-secondary" onclick="openStatusModal()">System Status</button>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1>AI-Rezeption für Zahnarztpraxen</h1>
+        <p class="subheading">
+          Nie wieder verpasste Anrufe. Ihre KI-Rezeptionistin antwortet automatisch, 
+          erfasst Patientendaten und erstellt Leads – rund um die Uhr.
+        </p>
+        <div class="button-group">
+          <a href="/simulate" class="btn btn-primary">Demo starten</a>
+          <a href="#features" class="btn btn-secondary">Mehr erfahren</a>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
   
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="container">
+      <h2>Warum Selaro?</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📞</div>
+          <h3>Nie wieder verpasste Anrufe</h3>
+          <p>Ihre KI-Rezeptionistin antwortet sofort auf eingehende Anrufe, auch außerhalb der Sprechstunden. Keine volle Mailbox, keine verlorenen Patienten.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">✅</div>
+          <h3>Automatische Datenerfassung</h3>
+          <p>Name, Telefon, Grund und Wunschtermin werden intelligent erfasst. Alle Informationen landen sofort in Ihrem Dashboard.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🚨</div>
+          <h3>Akutfälle priorisiert</h3>
+          <p>Zahnschmerzen, geschwollene Wangen oder Notfälle werden automatisch als dringend markiert. Ihre Praxis kann gezielt zurückrufen.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Einfache Integration</h3>
+          <p>Verbinden Sie einfach Ihre Praxistelefonnummer mit Selaro. Keine komplizierten Setups, keine teuren Umbauten.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- How It Works Section -->
+  <section class="how-it-works">
+    <div class="container">
+      <h2>Wie es funktioniert</h2>
+      <div class="steps-container">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Patient ruft an</h3>
+          <p>Ein Patient ruft in Ihrer Zahnarztpraxis an. Die Nummer ist mit Selaro verbunden.</p>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>KI nimmt an</h3>
+          <p>Selaro beantwortet den Anruf sofort mit einer freundlichen, deutschen Begrüßung.</p>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Daten erfassen</h3>
+          <p>Die KI stellt Fragen und erfasst Name, Grund, Dringlichkeit und Wunschtermin des Patienten.</p>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">4</div>
+          <h3>Im Dashboard</h3>
+          <p>Alle erfassten Leads erscheinen sofort in Ihrem Selaro-Dashboard zum Nachfassen.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Screenshot Section -->
+  <section class="screenshot">
+    <div class="container">
+      <h2>Dashboard-Übersicht</h2>
+      <div class="screenshot-mockup">
+        <div class="mockup-header">
+          <div class="mockup-dot"></div>
+          <div class="mockup-dot"></div>
+          <div class="mockup-dot"></div>
+        </div>
+        <div class="mockup-content">
+          <div class="mockup-element">📊 Neue Anfragen (heute): 12</div>
+          <div class="mockup-element">🚨 Akutfälle: 3</div>
+          <div class="mockup-element">📋 Leads insgesamt: 47</div>
+          <div class="mockup-element">⏰ Letzte Anfrage: vor 5 Min.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Footer -->
   <footer>
-    © 2025 Selaro — AI Receptionist for Dental Clinics
+    <div class="container">
+      <p>Selaro – KI-Rezeption für moderne Zahnarztpraxen</p>
+      <p style="margin-top: 1rem; color: #64748b;">
+        <a href="#kontakt">Kontakt</a> · <a href="#datenschutz">Datenschutz</a> · <a href="#impressum">Impressum</a>
+      </p>
+    </div>
   </footer>
-  
-  <!-- Simulate Modal -->
-  <div id="simulateModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'simulateModal')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h2>How the AI Call Works</h2>
-        <button class="modal-close" onclick="closeSimulateModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="flow-step">
-          <h3>Step 1: Patient Calls</h3>
-          <p>A patient calls your dental clinic phone number. Instead of voicemail or a busy signal, Selaro's AI receptionist answers immediately.</p>
-        </div>
-        
-        <div class="flow-step">
-          <h3>Step 2: AI Captures Information</h3>
-          <p>The AI greets the caller in German and asks key questions to understand their needs: name, reason for visit, insurance type, and preferred appointment time.</p>
-        </div>
-        
-        <div class="flow-step">
-          <h3>Step 3: Data Stored Automatically</h3>
-          <p>All information is captured and stored securely. Your team receives the lead details and can follow up to confirm the appointment.</p>
-        </div>
-        
-        <h3 style="margin-top: 1.5rem; color: #111827;">Sample AI Script (German)</h3>
-        <div class="script-box">
-          <strong>AI:</strong> "Guten Tag, hier ist die digitale Rezeptionsassistenz der Zahnarztpraxis. Wie kann ich Ihnen helfen?"<br><br>
-          <strong>Patient:</strong> "Ich brauche einen Termin für eine Zahnreinigung."<br><br>
-          <strong>AI:</strong> "Sehr gerne. Wie ist Ihr Name?"<br><br>
-          <strong>Patient:</strong> "Anna Müller."<br><br>
-          <strong>AI:</strong> "Danke, Frau Müller. Sind Sie privat oder gesetzlich versichert?"<br><br>
-          <strong>Patient:</strong> "Gesetzlich, bei der AOK."<br><br>
-          <strong>AI:</strong> "Perfekt. Wann möchten Sie gerne kommen?"<br><br>
-          <strong>Patient:</strong> "Am liebsten morgen Vormittag."<br><br>
-          <strong>AI:</strong> "Vielen Dank. Ein Mitarbeiter meldet sich bald zurück, um den Termin zu bestätigen. Auf Wiederhören!"
-        </div>
-        
-        <div class="note-box">
-          <strong>Note:</strong> Real call simulation happens via Twilio phone integration, not in the browser. 
-          To test with a real phone call, configure your Twilio number to point to the webhook endpoints.
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Status Modal -->
-  <div id="statusModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'statusModal')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h2>System Status</h2>
-        <button class="modal-close" onclick="closeStatusModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="statusContent" class="loading">
-          Loading system status...
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <script>
-    function openSimulateModal() {
-      document.getElementById('simulateModal').classList.add('active');
-    }
-    
-    function closeSimulateModal() {
-      document.getElementById('simulateModal').classList.remove('active');
-    }
-    
-    function openStatusModal() {
-      const modal = document.getElementById('statusModal');
-      modal.classList.add('active');
-      fetchSystemStatus();
-    }
-    
-    function closeStatusModal() {
-      document.getElementById('statusModal').classList.remove('active');
-    }
-    
-    function closeModalOnBackdrop(event, modalId) {
-      if (event.target.id === modalId) {
-        document.getElementById(modalId).classList.remove('active');
-      }
-    }
-    
-    async function fetchSystemStatus() {
-      const statusContent = document.getElementById('statusContent');
-      
-      try {
-        const response = await fetch('/debug/status');
-        const data = await response.json();
-        
-        const timestamp = new Date(data.timestamp).toLocaleString();
-        const uptimeMinutes = Math.floor(data.uptime / 60);
-        const uptimeSeconds = Math.floor(data.uptime % 60);
-        
-        let html = '<div class="status-grid">';
-        
-        // Overall status
-        html += \`
-          <div class="status-item">
-            <span class="status-label">Server Status</span>
-            <span class="status-indicator \${data.ok ? 'status-ok' : 'status-error'}">\${data.ok ? '✅' : '❌'}</span>
-          </div>
-        \`;
-        
-        // Environment variables
-        for (const [key, value] of Object.entries(data.environment)) {
-          html += \`
-            <div class="status-item">
-              <span class="status-label">\${key}</span>
-              <span class="status-indicator \${value ? 'status-ok' : 'status-error'}">\${value ? '✅' : '❌'}</span>
-            </div>
-          \`;
-        }
-        
-        html += '</div>';
-        
-        html += \`
-          <div class="status-info">
-            <strong>Last Updated:</strong> \${timestamp}<br>
-            <strong>Uptime:</strong> \${uptimeMinutes}m \${uptimeSeconds}s
-          </div>
-        \`;
-        
-        statusContent.innerHTML = html;
-      } catch (error) {
-        statusContent.innerHTML = \`
-          <div style="color: #ef4444; text-align: center; padding: 2rem;">
-            <strong>Error loading status</strong><br>
-            <small>\${error.message}</small>
-          </div>
-        \`;
-      }
-    }
-    
-    // Close modals with Escape key
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape') {
-        closeSimulateModal();
-        closeStatusModal();
-      }
-    });
-  </script>
 </body>
 </html>
   `;
