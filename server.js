@@ -773,6 +773,22 @@ app.get('/', (req, res) => {
       border: none;
       outline: none;
       font-family: 'Inter', sans-serif;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (max-width: 640px) {
+      .button-group {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+      }
     }
     
     .btn-primary {
@@ -830,6 +846,30 @@ app.get('/', (req, res) => {
       margin-right: auto;
       font-weight: 400;
       line-height: 1.7;
+    }
+
+    @media (max-width: 768px) {
+      .hero-content h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero-content .subheading {
+        font-size: 1rem;
+      }
+
+      .hero {
+        padding: 6rem 1rem 3rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero-content h1 {
+        font-size: 1.875rem;
+      }
+
+      .hero-content .subheading {
+        font-size: 0.95rem;
+      }
     }
 
     /* How It Works */
@@ -2259,6 +2299,18 @@ app.get('/dashboard', async (req, res) => {
       overflow-y: auto;
     }
 
+    @media (max-width: 768px) {
+      .content {
+        padding: 1.5rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .content {
+        padding: 1rem;
+      }
+    }
+
     /* Shared Card Style */
     .card-base {
       background: #fff;
@@ -2272,6 +2324,19 @@ app.get('/dashboard', async (req, res) => {
       grid-template-columns: repeat(4, 1fr);
       gap: 1.5rem;
       margin-bottom: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
     }
 
     .stat-card {
@@ -2303,6 +2368,14 @@ app.get('/dashboard', async (req, res) => {
       color: #111827;
       margin-bottom: 0.75rem;
       margin-top: 0;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
+    @media (max-width: 640px) {
+      .section-title {
+        font-size: 1.1rem;
+      }
     }
 
     /* Dashboard Sections */
@@ -2396,6 +2469,8 @@ app.get('/dashboard', async (req, res) => {
       gap: 1rem;
       padding: 1.25rem;
       transition: background 0.15s ease;
+      min-height: 44px;
+      align-items: flex-start;
     }
 
     .activity-item:hover {
@@ -2463,6 +2538,8 @@ app.get('/dashboard', async (req, res) => {
       gap: 1rem;
       padding: 1rem;
       transition: background 0.15s ease;
+      min-height: 44px;
+      align-items: flex-start;
     }
 
     .urgent-case-item:hover {
@@ -2530,6 +2607,8 @@ app.get('/dashboard', async (req, res) => {
       gap: 1rem;
       padding: 1rem;
       transition: background 0.15s ease;
+      min-height: 44px;
+      align-items: flex-start;
     }
 
     .appointment-item:hover {
@@ -2597,6 +2676,8 @@ app.get('/dashboard', async (req, res) => {
       gap: 0.75rem;
       padding: 1rem;
       transition: background 0.15s ease;
+      min-height: 44px;
+      align-items: flex-start;
     }
 
     .callback-queue-item:hover {
@@ -2792,6 +2873,21 @@ app.get('/dashboard', async (req, res) => {
       .analytics-grid {
         grid-template-columns: 1fr;
       }
+
+      .chart-container {
+        min-height: 300px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .chart-container {
+        min-height: 250px;
+      }
+
+      .bar-chart {
+        max-width: 100%;
+        overflow-x: auto;
+      }
     }
 
     /* Kanban Board Styling */
@@ -2942,10 +3038,35 @@ app.get('/dashboard', async (req, res) => {
     @media (max-width: 768px) {
       .kanban-board {
         grid-template-columns: 1fr;
+        overflow-x: auto;
+        padding-bottom: 1rem;
       }
 
       .kanban-column {
         height: 300px;
+        min-width: 280px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .kanban-column {
+        height: 250px;
+        min-width: 250px;
+      }
+
+      .kanban-card {
+        padding: 0.5rem;
+        min-height: 44px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        width: 220px;
+      }
+
+      .main-container {
+        margin-left: 220px;
       }
     }
 
