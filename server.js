@@ -4,9 +4,18 @@ import twilio from 'twilio';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import nodemailer from 'nodemailer';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const VoiceResponse = twilio.twiml.VoiceResponse;
+
+// Setup __dirname for ESM modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static files (audio, assets, etc.)
+app.use('/static', express.static(path.join(__dirname, 'static')));
 
 // Supabase setup (also check for typo'd variable name)
 const supabaseUrl = process.env.SUPABASE_URL || process.env.SUPARBASE_URL;
@@ -975,7 +984,10 @@ app.get('/', (req, res) => {
         <div class="navbar-logo-text">Selaro</div>
         <div class="navbar-logo-subtitle">AI Reception</div>
       </a>
-      <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+      <div class="button-group" style="margin-bottom: 0;">
+        <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+        <a href="/dashboard" class="btn btn-secondary">Login</a>
+      </div>
     </div>
   </nav>
 
@@ -1062,12 +1074,31 @@ app.get('/', (req, res) => {
   <!-- Footer -->
   <footer>
     <div class="container">
-      <p>Selaro – KI-Rezeption für moderne Zahnarztpraxen</p>
-      <p style="margin-top: 1rem; color: #64748b;">
+      <p style="color: #94a3b8;">© 2024 Selaro – AI Rezeption für Zahnarztpraxen</p>
+      <p style="margin-top: 0.75rem; color: #64748b; font-size: 0.85rem;">
         <a href="#kontakt">Kontakt</a> · <a href="#datenschutz">Datenschutz</a> · <a href="#impressum">Impressum</a>
       </p>
     </div>
   </footer>
+
+  <!-- Dark Mode Toggle & Skeleton Loaders -->
+  <script>
+    // Dark mode toggle
+    function initDarkMode() {
+      const html = document.documentElement;
+      const stored = localStorage.getItem('darkMode');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const isDark = stored !== null ? stored === 'true' : prefersDark;
+      
+      if (isDark) {
+        html.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+      }
+    }
+    
+    initDarkMode();
+  </script>
 </body>
 </html>
   `;
@@ -1397,7 +1428,7 @@ app.get('/dashboard', async (req, res) => {
 <body>
   <!-- Sidebar -->
   <aside class="sidebar">
-    <a href="/" class="logo-link sidebar-logo">
+    <a href="/" class="logo-link sidebar-logo" title="Zur Startseite">
       <div class="logo-text">Selaro</div>
       <div class="logo-subtitle">AI Reception</div>
     </a>
