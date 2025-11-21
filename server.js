@@ -1573,22 +1573,15 @@ app.get('/', (req, res) => {
   <!-- Hero Section -->
   <section class="hero">
     <div class="container">
-      <div class="hero-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;">
-        <div class="hero-content">
-          <h1>Die Zukunft der Telefonrezeption für Zahnarztpraxen</h1>
-          <p class="subheading">
-            24/7 AI-Assistent, der Patienten professionell begrüßt.<br>
-            Keine verpassten Anrufe. Strukturierte Leads im Dashboard.
-          </p>
-          <div class="button-group">
-            <a href="/dashboard" class="btn btn-primary">Demo starten</a>
-            <a href="#contact" class="btn btn-secondary">Kontakt aufnehmen</a>
-          </div>
-        </div>
-        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(0, 200, 150, 0.3); padding: 2rem; border-radius: 1rem; backdrop-filter: blur(10px); text-align: center; color: #cbd5e1;">
-          <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-          <p style="font-size: 0.95rem; margin-bottom: 1.5rem;">Dashboard mit allen Telefonanfragen Ihrer Praxis</p>
-          <p style="font-size: 0.9rem; line-height: 1.6;">Jeder Anruf wird als strukturierte Anfrage gespeichert – mit Name, Kontaktdaten, Anliegen, Dringlichkeit und Wunschtermin.</p>
+      <div class="hero-content">
+        <h1>Die Zukunft der Telefonrezeption für Zahnarztpraxen</h1>
+        <p class="subheading">
+          24/7 AI-Assistent, der Patienten professionell begrüßt.<br>
+          Keine verpassten Anrufe. Strukturierte Leads im Dashboard.
+        </p>
+        <div class="button-group">
+          <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+          <a href="#contact" class="btn btn-secondary">Kontakt aufnehmen</a>
         </div>
       </div>
     </div>
