@@ -2055,6 +2055,37 @@ app.get('/dashboard', async (req, res) => {
       .filter(l => l.created_at >= todayIso)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+    // Calculate last 7 days analytics
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoIso = sevenDaysAgo.toISOString();
+
+    const callsLast7Days = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateKey = d.toISOString().split('T')[0];
+      callsLast7Days[dateKey] = 0;
+    }
+
+    leads.forEach(lead => {
+      if (lead.created_at >= sevenDaysAgoIso) {
+        const dateKey = lead.created_at.split('T')[0];
+        if (callsLast7Days.hasOwnProperty(dateKey)) {
+          callsLast7Days[dateKey]++;
+        }
+      }
+    });
+
+    const dailyCallsArray = Object.entries(callsLast7Days).map(([date, count]) => ({
+      date: date,
+      count: count,
+      dayLabel: new Date(date).toLocaleDateString('de-DE', { weekday: 'short' }).substring(0, 2)
+    }));
+
+    const totalAcute = leads.filter(l => l.urgency === 'akut').length;
+    const totalNormal = leads.filter(l => l.urgency !== 'akut' && l.urgency).length;
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2363,6 +2394,125 @@ app.get('/dashboard', async (req, res) => {
       color: #6b7280;
     }
 
+    /* Analytics Styling */
+    .analytics-section {
+      margin-top: 2rem;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .analytics-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Bar Chart */
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      gap: 0.75rem;
+      height: 200px;
+    }
+
+    .bar-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+    }
+
+    .bar-container {
+      flex: 1;
+      width: 100%;
+      background: #f3f4f6;
+      border-radius: 0.375rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      min-height: 10px;
+    }
+
+    .bar {
+      width: 100%;
+      max-width: 100%;
+      background: linear-gradient(180deg, #3b82f6 0%, #1e40af 100%);
+      border-radius: 0.25rem;
+      transition: background 0.2s ease;
+    }
+
+    .bar:hover {
+      background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%);
+    }
+
+    .bar-label {
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .bar-value {
+      font-size: 12px;
+      color: #374151;
+      font-weight: 700;
+      margin-top: 0.25rem;
+    }
+
+    /* Donut Chart */
+    .donut-chart-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .donut-chart {
+      max-width: 150px;
+    }
+
+    .chart-legend {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 200px;
@@ -2499,6 +2649,65 @@ app.get('/dashboard', async (req, res) => {
               <p>Heute gibt es noch keine Aktivitäten.</p>
             </div>
           `}
+        </div>
+      </section>
+
+      <!-- Analytics Section -->
+      <section class="analytics-section">
+        <h2 class="section-title">Analytics</h2>
+        <div class="analytics-grid">
+          <!-- Chart 1: Calls per Day -->
+          <div class="analytics-card">
+            <h3 class="chart-title">Anrufe pro Tag (letzte 7 Tage)</h3>
+            <div class="bar-chart">
+              ${dailyCallsArray.map(day => {
+                const maxCount = Math.max(...dailyCallsArray.map(d => d.count), 5);
+                const height = (day.count / maxCount) * 100;
+                return `
+                  <div class="bar-item">
+                    <div class="bar-container">
+                      <div class="bar" style="height: ${height}%;" title="${day.count} Anrufe"></div>
+                    </div>
+                    <div class="bar-label">${day.dayLabel}</div>
+                    <div class="bar-value">${day.count}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Chart 2: Acute vs Normal -->
+          <div class="analytics-card">
+            <h3 class="chart-title">Anfragetypen</h3>
+            <div class="donut-chart-container">
+              <svg class="donut-chart" width="200" height="200" viewBox="0 0 200 200">
+                ${totalAcute + totalNormal > 0 ? `
+                  <circle cx="100" cy="100" r="90" fill="none" stroke="#dbeafe" stroke-width="40"></circle>
+                  ${totalAcute > 0 ? `
+                    <circle cx="100" cy="100" r="90" fill="none" stroke="#fee2e2" stroke-width="40" 
+                      stroke-dasharray="${(totalAcute / (totalAcute + totalNormal)) * 565.48} 565.48" 
+                      stroke-dashoffset="0" transform="rotate(-90 100 100)"></circle>
+                  ` : ''}
+                  <text x="100" y="110" text-anchor="middle" font-size="24" font-weight="700" fill="#111827">
+                    ${totalAcute + totalNormal}
+                  </text>
+                ` : `
+                  <circle cx="100" cy="100" r="90" fill="none" stroke="#e5e7eb" stroke-width="40"></circle>
+                  <text x="100" y="110" text-anchor="middle" font-size="16" fill="#9ca3af">Keine Daten</text>
+                `}
+              </svg>
+              <div class="chart-legend">
+                <div class="legend-item">
+                  <div class="legend-color" style="background: #dbeafe;"></div>
+                  <span>Normal: <strong>${totalNormal}</strong></span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-color" style="background: #fee2e2;"></div>
+                  <span>Akut: <strong>${totalAcute}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
