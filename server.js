@@ -672,7 +672,11 @@ app.get('/', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Selaro – AI Rezeption für Zahnarztpraxen</title>
+  <meta name="description" content="Selaro – KI-Rezeption für Zahnarztpraxen. 24/7 automatische Anrufbehandlung, Patientendatenerfassung und Lead-Generierung.">
+  <title>Selaro – AI Rezeption für Zahnarztpraxen | 24/7 KI-Assistent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -681,7 +685,7 @@ app.get('/', (req, res) => {
     }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #e2e8f0;
       line-height: 1.6;
@@ -734,7 +738,6 @@ app.get('/', (req, res) => {
       font-weight: 400;
     }
 
-    /* Logo Link */
     .logo-link {
       display: inline-flex;
       flex-direction: column;
@@ -748,35 +751,6 @@ app.get('/', (req, res) => {
       opacity: 0.9;
     }
 
-    /* Hero Section */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 4rem 1rem;
-      margin-top: 70px;
-    }
-    
-    .hero-content h1 {
-      font-size: 3.5rem;
-      font-weight: 800;
-      margin-bottom: 1.5rem;
-      color: #f1f5f9;
-      line-height: 1.2;
-    }
-    
-    .hero-content .subheading {
-      font-size: 1.25rem;
-      color: #cbd5e1;
-      margin-bottom: 2.5rem;
-      max-width: 700px;
-      margin-left: auto;
-      margin-right: auto;
-      font-weight: 400;
-    }
-    
     .button-group {
       display: flex;
       gap: 1rem;
@@ -787,8 +761,8 @@ app.get('/', (req, res) => {
     
     .btn {
       display: inline-block;
-      padding: 1rem 2.5rem;
-      font-size: 1rem;
+      padding: 0.75rem 2rem;
+      font-size: 0.95rem;
       font-weight: 600;
       text-decoration: none;
       border-radius: 0.5rem;
@@ -796,6 +770,7 @@ app.get('/', (req, res) => {
       cursor: pointer;
       border: none;
       outline: none;
+      font-family: 'Inter', sans-serif;
     }
     
     .btn-primary {
@@ -806,7 +781,7 @@ app.get('/', (req, res) => {
     
     .btn-primary:hover {
       background: #00b586;
-      transform: translateY(-3px);
+      transform: translateY(-2px);
       box-shadow: 0 15px 35px rgba(0, 200, 150, 0.4);
     }
     
@@ -818,65 +793,47 @@ app.get('/', (req, res) => {
     
     .btn-secondary:hover {
       background: rgba(0, 200, 150, 0.1);
-      transform: translateY(-3px);
+      transform: translateY(-2px);
     }
-    
-    /* Features Section */
-    .features {
-      padding: 6rem 1rem;
-      background: rgba(0, 0, 0, 0.3);
-    }
-    
-    #features h2 {
-      font-size: 2.5rem;
+
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8rem 1rem 4rem;
       text-align: center;
-      margin-bottom: 3rem;
+      animation: fadeIn 0.6s ease-out;
+    }
+    
+    .hero-content h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
       color: #f1f5f9;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #00C896 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-      margin-bottom: 3rem;
-    }
-    
-    .feature-card {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      padding: 2rem;
-      border-radius: 1rem;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-    }
-    
-    .feature-card:hover {
-      background: rgba(30, 41, 59, 0.8);
-      border-color: rgba(0, 200, 150, 0.4);
-      transform: translateY(-5px);
-    }
-    
-    .feature-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      height: 60px;
-    }
-    
-    .feature-card h3 {
+    .hero-content .subheading {
       font-size: 1.25rem;
-      margin-bottom: 0.75rem;
-      color: #f1f5f9;
-    }
-    
-    .feature-card p {
       color: #cbd5e1;
-      font-size: 0.95rem;
-      line-height: 1.6;
+      margin-bottom: 2.5rem;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      font-weight: 400;
+      line-height: 1.7;
     }
-    
-    /* How It Works Section */
+
+    /* How It Works */
     .how-it-works {
-      padding: 6rem 1rem;
+      padding: 5rem 1rem;
+      background: rgba(0, 0, 0, 0.2);
     }
     
     .how-it-works h2 {
@@ -884,6 +841,7 @@ app.get('/', (req, res) => {
       text-align: center;
       margin-bottom: 3rem;
       color: #f1f5f9;
+      font-weight: 700;
     }
     
     .steps-container {
@@ -899,8 +857,13 @@ app.get('/', (req, res) => {
       border: 1px solid rgba(0, 200, 150, 0.3);
       padding: 2rem;
       border-radius: 1rem;
-      position: relative;
       text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .step:hover {
+      background: rgba(30, 41, 59, 0.8);
+      transform: translateY(-5px);
     }
     
     .step-number {
@@ -921,33 +884,550 @@ app.get('/', (req, res) => {
       font-size: 1.125rem;
       margin-bottom: 0.75rem;
       color: #f1f5f9;
+      font-weight: 600;
     }
     
     .step p {
       color: #cbd5e1;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
+    }
+
+    /* Features Grid */
+    .features {
+      padding: 5rem 1rem;
     }
     
+    .features h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+    
+    .feature-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      padding: 2rem;
+      border-radius: 1rem;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+    
+    .feature-card:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(0, 200, 150, 0.4);
+      transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .feature-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 0.75rem;
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+    
+    .feature-card p {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Built For Section */
+    .built-for {
+      padding: 5rem 1rem;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(0, 200, 150, 0.05) 100%);
+    }
+    
+    .built-for h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .built-for-subtitle {
+      text-align: center;
+      color: #cbd5e1;
+      margin-bottom: 3rem;
+      font-size: 1.1rem;
+    }
+    
+    .built-for-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .built-for-item {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(0, 200, 150, 0.2);
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      text-align: center;
+    }
+    
+    .built-for-item .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .built-for-item p {
+      color: #e2e8f0;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+
+    /* Demo Section */
+    .demo-section {
+      padding: 5rem 1rem;
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      text-align: center;
+    }
+    
+    .demo-section h2 {
+      font-size: 2rem;
+      color: white;
+      margin-bottom: 2rem;
+      font-weight: 700;
+    }
+    
+    .phone-mockup {
+      width: 200px;
+      height: 400px;
+      background: #1a1a2e;
+      border-radius: 30px;
+      margin: 2rem auto;
+      border: 8px solid #2a2a4e;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+    
+    .phone-mockup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 25px;
+      background: #1a1a2e;
+      border-radius: 0 0 20px 20px;
+      z-index: 10;
+    }
+    
+    .phone-content {
+      padding: 40px 15px 15px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: wave 3s ease-in-out infinite;
+    }
+    
+    .wave {
+      height: 10px;
+      background: linear-gradient(90deg, #00C896, #a78bfa, #00C896);
+      border-radius: 5px;
+      animation: shimmer 2s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes wave {
+      0%, 100% { transform: scaleY(1); }
+      50% { transform: scaleY(1.1); }
+    }
+
+    .demo-btn {
+      margin-top: 1rem;
+    }
+
+    /* Summary Card */
+    .summary-section {
+      padding: 5rem 1rem;
+    }
+    
+    .summary-section h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .summary-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 600px;
+      margin: 0 auto;
+      backdrop-filter: blur(10px);
+    }
+    
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+    }
+    
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+    
+    .summary-label {
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+    
+    .summary-value {
+      color: #00C896;
+      font-weight: 600;
+    }
+
+    /* Dashboard Preview */
+    .dashboard-preview {
+      padding: 5rem 1rem;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .dashboard-preview h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .preview-box {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 900px;
+      margin: 0 auto;
+      backdrop-filter: blur(10px);
+      text-align: center;
+      color: #cbd5e1;
+    }
+
+    /* Benefits */
+    .benefits {
+      padding: 5rem 1rem;
+    }
+    
+    .benefits h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .benefit-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+      text-align: center;
+    }
+    
+    .benefit-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .benefit-card h3 {
+      color: #f1f5f9;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .benefit-card p {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+    }
+
+    /* Integrations */
+    .integrations {
+      padding: 5rem 1rem;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .integrations h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .integrations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .integration-item {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.2);
+      padding: 2rem;
+      border-radius: 1rem;
+      text-align: center;
+      position: relative;
+    }
+    
+    .integration-item .logo {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .integration-item p {
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    .coming-soon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #00C896;
+      color: #0f172a;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Testimonials */
+    .testimonials {
+      padding: 5rem 1rem;
+    }
+    
+    .testimonials h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .testimonial-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+    }
+    
+    .testimonial-quote {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+      font-style: italic;
+    }
+    
+    .testimonial-author {
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+    
+    .testimonial-role {
+      color: #00C896;
+      font-size: 0.85rem;
+    }
+
+    /* Pricing */
+    .pricing {
+      padding: 5rem 1rem;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .pricing h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .pricing-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 2px solid rgba(0, 200, 150, 0.3);
+      padding: 2rem;
+      border-radius: 1rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .pricing-card:hover {
+      border-color: #00C896;
+      transform: translateY(-5px);
+    }
+    
+    .pricing-card h3 {
+      color: #f1f5f9;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    
+    .pricing-price {
+      font-size: 2rem;
+      color: #00C896;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    
+    .pricing-desc {
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* FAQ */
+    .faq {
+      padding: 5rem 1rem;
+    }
+    
+    .faq h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    
+    .faq-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    
+    .faq-item {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(0, 200, 150, 0.2);
+      margin-bottom: 1rem;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+    
+    .faq-question {
+      background: rgba(30, 41, 59, 0.5);
+      padding: 1.5rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #f1f5f9;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .faq-question:hover {
+      background: rgba(30, 41, 59, 0.8);
+    }
+    
+    .faq-toggle {
+      font-size: 1.2rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .faq-item.open .faq-toggle {
+      transform: rotate(180deg);
+    }
+    
+    .faq-answer {
+      padding: 0 1.5rem;
+      color: #cbd5e1;
+      max-height: 0;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .faq-item.open .faq-answer {
+      padding: 0 1.5rem 1.5rem;
+      max-height: 500px;
+    }
+
     /* Footer */
     footer {
       padding: 3rem 1rem;
       text-align: center;
-      border-top: 1px solid rgba(148, 163, 184, 0.1);
-      color: #94a3b8;
-      font-size: 0.9rem;
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      color: rgba(255, 255, 255, 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     footer a {
-      color: #00C896;
+      color: white;
       text-decoration: none;
-      transition: color 0.3s ease;
+      transition: opacity 0.3s ease;
+      font-weight: 500;
     }
     
     footer a:hover {
-      color: #00b586;
+      opacity: 0.7;
     }
-    
+
+    /* Mobile Responsive */
     @media (max-width: 768px) {
+      .navbar-content {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
       .hero-content h1 {
         font-size: 2rem;
       }
@@ -964,14 +1444,14 @@ app.get('/', (req, res) => {
         width: 100%;
       }
       
-      #features h2,
-      .how-it-works h2,
-      .screenshot h2 {
-        font-size: 1.75rem;
+      h2 {
+        font-size: 1.75rem !important;
       }
       
-      .mockup-element {
-        width: 95%;
+      .feature-grid,
+      .steps-container,
+      .benefits-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -995,51 +1475,19 @@ app.get('/', (req, res) => {
   <section class="hero">
     <div class="container">
       <div class="hero-content">
-        <h1>AI-Rezeption für Zahnarztpraxen</h1>
+        <h1>Die Zukunft der Telefonrezeption für Zahnarztpraxen</h1>
         <p class="subheading">
-          Nie wieder verpasste Anrufe. Ihre KI-Rezeptionistin antwortet automatisch, 
-          erfasst Patientendaten und erstellt Leads – rund um die Uhr.
+          24/7 AI-Assistent, der Patienten professionell begrüßt, Fragen beantwortet und vollständige Leads an Ihr Team weiterleitet.
         </p>
         <div class="button-group">
-          <a href="#features" class="btn btn-secondary">Mehr erfahren</a>
+          <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+          <a href="#kontakt" class="btn btn-secondary">Kontakt</a>
         </div>
       </div>
     </div>
   </section>
-  
-  <!-- Features Section -->
-  <section class="features" id="features">
-    <div class="container">
-      <h2>Warum Selaro?</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">📞</div>
-          <h3>Nie wieder verpasste Anrufe</h3>
-          <p>Ihre KI-Rezeptionistin antwortet sofort auf eingehende Anrufe, auch außerhalb der Sprechstunden. Keine volle Mailbox, keine verlorenen Patienten.</p>
-        </div>
-        
-        <div class="feature-card">
-          <div class="feature-icon">✅</div>
-          <h3>Automatische Datenerfassung</h3>
-          <p>Name, Telefon, Grund und Wunschtermin werden intelligent erfasst. Alle Informationen landen sofort in Ihrem Dashboard.</p>
-        </div>
-        
-        <div class="feature-card">
-          <div class="feature-icon">🚨</div>
-          <h3>Akutfälle priorisiert</h3>
-          <p>Zahnschmerzen, geschwollene Wangen oder Notfälle werden automatisch als dringend markiert. Ihre Praxis kann gezielt zurückrufen.</p>
-        </div>
-        
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <h3>Einfache Integration</h3>
-          <p>Verbinden Sie einfach Ihre Praxistelefonnummer mit Selaro. Keine komplizierten Setups, keine teuren Umbauten.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-  
-  <!-- How It Works Section -->
+
+  <!-- How It Works -->
   <section class="how-it-works">
     <div class="container">
       <h2>Wie es funktioniert</h2>
@@ -1047,42 +1495,399 @@ app.get('/', (req, res) => {
         <div class="step">
           <div class="step-number">1</div>
           <h3>Patient ruft an</h3>
-          <p>Ein Patient ruft in Ihrer Zahnarztpraxis an. Die Nummer ist mit Selaro verbunden.</p>
+          <p>AI antwortet sofort auf eingehende Anrufe 24/7, auch außerhalb der Öffnungszeiten.</p>
         </div>
         
         <div class="step">
           <div class="step-number">2</div>
-          <h3>KI nimmt an</h3>
-          <p>Selaro beantwortet den Anruf sofort mit einer freundlichen, deutschen Begrüßung.</p>
+          <h3>Daten erfassen</h3>
+          <p>Die KI sammelt alle erforderlichen Patientendaten automatisch und intelligent.</p>
         </div>
         
         <div class="step">
           <div class="step-number">3</div>
-          <h3>Daten erfassen</h3>
-          <p>Die KI stellt Fragen und erfasst Name, Grund, Dringlichkeit und Wunschtermin des Patienten.</p>
-        </div>
-        
-        <div class="step">
-          <div class="step-number">4</div>
-          <h3>Im Dashboard</h3>
-          <p>Alle erfassten Leads erscheinen sofort in Ihrem Selaro-Dashboard zum Nachfassen.</p>
+          <h3>Lead im Dashboard</h3>
+          <p>Vollständige Patienteninformationen erscheinen sofort in Ihrem Selaro-Dashboard.</p>
         </div>
       </div>
     </div>
   </section>
-  
+
+  <!-- Features Grid -->
+  <section class="features">
+    <div class="container">
+      <h2>8 Premium Features für Zahnarztpraxen</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📞</div>
+          <h3>24/7 Telefonannahme</h3>
+          <p>Nie wieder verpasste Anrufe. Ihre KI-Rezeptionistin antwortet rund um die Uhr.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Vollständige Patientendaten</h3>
+          <p>Name, Telefon, Grund und Wunschtermin werden automatisch erfasst.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🚨</div>
+          <h3>Akut-Erkennung</h3>
+          <p>Zahnschmerzen und Notfälle werden automatisch als dringend markiert.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h3>Automatische Terminwünsche</h3>
+          <p>Patienten können ihre bevorzugten Zeiten mitteilen.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌍</div>
+          <h3>Mehrsprachige Begrüßung</h3>
+          <p>Flexible Sprachunterstützung für diverse Patientengruppen.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>DSGVO-konform</h3>
+          <p>Vollständige Datenschutzkonformität und sichere Speicherung.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Sofortige Lead-Benachrichtigung</h3>
+          <p>Ihr Team wird sofort über neue Anfragen informiert.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Individuelle Anweisungen</h3>
+          <p>Personalisierte Grüße und Anweisungen für jede Praxis.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Built For Dental Clinics -->
+  <section class="built-for">
+    <div class="container">
+      <h2>Speziell für Zahnarztpraxen entwickelt</h2>
+      <p class="built-for-subtitle">Selaro versteht die Besonderheiten einer Zahnarztpraxis</p>
+      <div class="built-for-grid">
+        <div class="built-for-item">
+          <div class="icon">🕐</div>
+          <p>Öffnungszeiten verstehen</p>
+        </div>
+        <div class="built-for-item">
+          <div class="icon">🦷</div>
+          <p>Zahnfachbegriffe erkennen</p>
+        </div>
+        <div class="built-for-item">
+          <div class="icon">📊</div>
+          <p>Dringlichkeit bewerten</p>
+        </div>
+        <div class="built-for-item">
+          <div class="icon">🛡️</div>
+          <p>Versicherungstypen erfassen</p>
+        </div>
+        <div class="built-for-item">
+          <div class="icon">📞</div>
+          <p>Personalisierte Grüße</p>
+        </div>
+        <div class="built-for-item">
+          <div class="icon">✅</div>
+          <p>Automatische Leads</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Demo Section -->
+  <section class="demo-section">
+    <div class="container">
+      <h2>Probieren Sie die AI-Rezeption jetzt aus</h2>
+      <div class="phone-mockup">
+        <div class="phone-content">
+          <div class="wave"></div>
+          <div class="wave" style="animation-delay: 0.2s;"></div>
+          <div class="wave" style="animation-delay: 0.4s;"></div>
+          <div class="wave" style="animation-delay: 0.6s;"></div>
+          <div class="wave" style="animation-delay: 0.8s;"></div>
+        </div>
+      </div>
+      <a href="/dashboard" class="btn btn-primary demo-btn">Demo starten</a>
+    </div>
+  </section>
+
+  <!-- Call Summary Example -->
+  <section class="summary-section">
+    <div class="container">
+      <h2>Beispiel: Erfasste Lead-Daten</h2>
+      <div class="summary-card">
+        <div class="summary-row">
+          <span class="summary-label">Name</span>
+          <span class="summary-value">Maria Schmidt</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Telefon</span>
+          <span class="summary-value">+49 123 456789</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Grund</span>
+          <span class="summary-value">Zahnschmerzen</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Dringlichkeit</span>
+          <span class="summary-value">🚨 Akut</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Versicherung</span>
+          <span class="summary-value">Gesetzlich</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Wunschtermin</span>
+          <span class="summary-value">Heute 14:00</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dashboard Preview -->
+  <section class="dashboard-preview">
+    <div class="container">
+      <h2>Leads Dashboard Preview</h2>
+      <div class="preview-box">
+        📊 Alle erfassten Leads auf einen Blick <br>
+        Mit Status, Dringlichkeit und Timeline für automatische Verwaltung.
+      </div>
+    </div>
+  </section>
+
+  <!-- Benefits -->
+  <section class="benefits">
+    <div class="container">
+      <h2>Ihre Vorteile mit Selaro</h2>
+      <div class="benefits-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">✨</div>
+          <h3>Keine verpassten Anrufe</h3>
+          <p>24/7 Anrufbehandlung, auch nachts und am Wochenende.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">👥</div>
+          <h3>Entlastung des Teams</h3>
+          <p>Ihre Rezeptionistin konzentriert sich auf persönliche Beratung.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">😊</div>
+          <h3>Höhere Patientenzufriedenheit</h3>
+          <p>Sofortige Begrüßung und professionelle Betreuung rund um die Uhr.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">⚡</div>
+          <h3>Sofortige Dokumentation</h3>
+          <p>Alle Patientendaten werden automatisch erfasst und gespeichert.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section class="integrations">
+    <div class="container">
+      <h2>Kompatible Systeme</h2>
+      <div class="integrations-grid">
+        <div class="integration-item">
+          <div class="logo">🔵</div>
+          <p>Doctolib</p>
+          <div class="coming-soon">Coming Soon</div>
+        </div>
+        <div class="integration-item">
+          <div class="logo">📅</div>
+          <p>Google Calendar</p>
+          <div class="coming-soon">Coming Soon</div>
+        </div>
+        <div class="integration-item">
+          <div class="logo">📧</div>
+          <p>Outlook</p>
+          <div class="coming-soon">Coming Soon</div>
+        </div>
+        <div class="integration-item">
+          <div class="logo">🔗</div>
+          <p>WordPress</p>
+          <div class="coming-soon">Coming Soon</div>
+        </div>
+        <div class="integration-item">
+          <div class="logo">🎤</div>
+          <p>OpenAI Voice</p>
+          <div class="coming-soon">Coming Soon</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials">
+    <div class="container">
+      <h2>Stimmen aus Zahnarztpraxen</h2>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            "Selaro hat uns viele verpasste Anrufe gespart. Die Patienten sind begeistert von der professionellen Begrüßung!"
+          </div>
+          <div class="testimonial-author">Dr. Meyer</div>
+          <div class="testimonial-role">Zahnarztpraxis Berlin</div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            "Die Datenerfassung spart uns täglich Stunden Arbeit. Alle Informationen sind sofort im System."
+          </div>
+          <div class="testimonial-author">Petra Schmidt</div>
+          <div class="testimonial-role">Zahnarztpraxis München</div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            "Unsere Patientenzufriedenheit ist gestiegen. Die AI antwortet freundlich und professionell."
+          </div>
+          <div class="testimonial-author">Dr. Weber</div>
+          <div class="testimonial-role">Zahnarztpraxis Hamburg</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="pricing">
+    <div class="container">
+      <h2>Flexible Preismodelle</h2>
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <h3>Starter</h3>
+          <div class="pricing-price">0€</div>
+          <div class="pricing-desc">Demo Modus – Vollständig kostenfrei testen</div>
+          <a href="/dashboard" class="btn btn-primary">Demo starten</a>
+        </div>
+        <div class="pricing-card">
+          <h3>Professional</h3>
+          <div class="pricing-price">TBD</div>
+          <div class="pricing-desc">Für wachsende Praxen – Bitte Kontakt aufnehmen</div>
+          <a href="#kontakt" class="btn btn-secondary">Kontakt</a>
+        </div>
+        <div class="pricing-card">
+          <h3>Enterprise</h3>
+          <div class="pricing-price">TBD</div>
+          <div class="pricing-desc">Maßgeschneiderte Lösungen – Individuelle Beratung</div>
+          <a href="#kontakt" class="btn btn-secondary">Kontakt</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq">
+    <div class="container">
+      <h2>Häufig gestellte Fragen</h2>
+      <div class="faq-container">
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Wie lange dauert die Einrichtung?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Die Einrichtung dauert in der Regel 24-48 Stunden. Sie verbinden einfach Ihre Telefonnummer mit Selaro und wir kümmern uns um den Rest.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Ist Selaro DSGVO-konform?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Ja, Selaro erfüllt alle DSGVO-Anforderungen. Alle Patientendaten werden verschlüsselt und sicher gespeichert. Mehr Details finden Sie in unserer Datenschutzerklärung.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Kann ich die KI-Anweisungen anpassen?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Ja, Selaro bietet vollständig personalisierbare Anweisungen. Sie können die Begrüßung, Fragen und Handhabung von Akutfällen an Ihre Praxis anpassen.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Funktioniert Selaro mit meinem Telefonsystem?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Selaro ist kompatibel mit den meisten modernen Telefonsystemen. Kontaktieren Sie uns, um zu prüfen, ob es mit Ihrer Einrichtung funktioniert.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Wie werden die erfassten Daten exportiert?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Alle Leads können im Dashboard in verschiedenen Formaten exportiert werden. Sie können auch eine API für Integration nutzen.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Gibt es einen Kundensupport?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Ja, wir bieten Kundensupport per Email und Telefon. Unser Team hilft Ihnen bei Fragen und Problemen.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Kann ich die Demo kostenlos testen?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Ja, Sie können Selaro vollständig kostenlos in unserem Demo-Modus testen. Kreditkarte nicht erforderlich.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Was ist das Limit für Anrufe?</span>
+            <span class="faq-toggle">▼</span>
+          </div>
+          <div class="faq-answer">
+            Es gibt kein Limit für die Anzahl der Anrufe. Sie zahlen nur für die Anrufe, die tatsächlich durch Selaro bearbeitet werden.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Footer -->
   <footer>
     <div class="container">
-      <p style="color: #94a3b8;">© 2024 Selaro – AI Rezeption für Zahnarztpraxen</p>
-      <p style="margin-top: 0.75rem; color: #64748b; font-size: 0.85rem;">
+      <div class="logo-link navbar-logo" style="margin-bottom: 1rem; justify-content: center;">
+        <div class="navbar-logo-text">Selaro</div>
+        <div class="navbar-logo-subtitle">AI Reception für Zahnarztpraxen</div>
+      </div>
+      <p style="margin-bottom: 1rem;">
         <a href="#kontakt">Kontakt</a> · <a href="#datenschutz">Datenschutz</a> · <a href="#impressum">Impressum</a>
       </p>
+      <p style="margin-top: 1rem; opacity: 0.8;">© 2024 Selaro. Alle Rechte vorbehalten.</p>
     </div>
   </footer>
 
-  <!-- Dark Mode Toggle & Skeleton Loaders -->
   <script>
+    // FAQ Accordion
+    document.querySelectorAll('.faq-question').forEach(question => {
+      question.addEventListener('click', () => {
+        const item = question.parentElement;
+        item.classList.toggle('open');
+      });
+    });
+
     // Dark mode toggle
     function initDarkMode() {
       const html = document.documentElement;
