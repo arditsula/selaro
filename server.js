@@ -3712,17 +3712,17 @@ app.get('/settings', async (req, res) => {
 
         <div class="settings-field">
           <div class="settings-label">Praxisname</div>
-          <div class="settings-value">${clinicName}</div>
+          <input type="text" id="clinic-name" class="settings-input" value="${clinicName}" />
         </div>
 
         <div class="settings-field">
           <div class="settings-label">Telefonnummer</div>
-          <div class="settings-value">${clinicPhone}</div>
+          <input type="text" id="clinic-phone" class="settings-input" value="${clinicPhone}" />
         </div>
 
         <div class="settings-field">
           <div class="settings-label">Adresse</div>
-          <div class="settings-value">${clinicAddress}</div>
+          <input type="text" id="clinic-address" class="settings-input" value="${clinicAddress}" />
         </div>
 
         <div class="settings-field">
@@ -3738,10 +3738,11 @@ app.get('/settings', async (req, res) => {
       <!-- RIGHT CARD: AI Instructions -->
       <div class="settings-right">
         <h1 class="settings-title">AI-Rezeptionsanweisungen</h1>
-        <textarea class="instructions-textarea" readonly>${clinicInstructions}</textarea>
+        <textarea id="clinic-instructions" class="instructions-textarea" rows="10">${clinicInstructions}</textarea>
         <div class="instructions-helper">
           Diese Anweisungen steuern, wie der AI-Assistent am Telefon mit Patienten spricht.
         </div>
+        <button id="save-settings-btn" class="save-button">Einstellungen speichern</button>
       </div>
     </div>
     ` : `
