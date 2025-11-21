@@ -5137,6 +5137,51 @@ app.get('/leads', async (req, res) => {
       letter-spacing: 0.3px;
     }
 
+    /* Quick Action Buttons */
+    .action-buttons {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .action-btn {
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .action-btn:active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .action-link {
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-link:hover {
+      color: white;
+      text-decoration: underline;
+    }
+
     .urgency-urgent {
       background: rgba(239, 68, 68, 0.2);
       color: #fca5a5;
@@ -5573,6 +5618,7 @@ app.get('/leads', async (req, res) => {
               <th>Anliegen</th>
               <th>Dringlichkeit</th>
               <th>Status</th>
+              <th>Aktionen</th>
             </tr>
           </thead>
           <tbody id="leadsTableBody">
@@ -5756,10 +5802,18 @@ app.get('/leads', async (req, res) => {
                 <span style="font-size: 8px;">▼</span>
                 <div class="status-dropdown" id="statusDropdown\${index}">
                   <div class="status-option" onclick="updateStatus('\${lead.id}', 'new')">Neu</div>
-                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'in_progress')">In Bearbeitung</div>
-                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'done')">Abgeschlossen</div>
+                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'callback')">Rückruf nötig</div>
+                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'scheduled')">Termin vereinbart</div>
+                  <div class="status-option" onclick="updateStatus('\${lead.id}', 'lost')">Nicht erreicht</div>
                 </div>
               </span>
+            </td>
+            <td>
+              <div class="action-buttons" onclick="event.stopPropagation();">
+                <button class="action-btn" onclick="selectLead(\${index})">Details</button>
+                <button class="action-btn" onclick="openAppointmentModal('\${lead.id}', '\${lead.name || ''}', '\${lead.phone || ''}')">Termin</button>
+                <button class="action-btn" onclick="quickUpdateStatus('\${lead.id}', 'lost')">Erledigt</button>
+              </div>
             </td>
           </tr>
         \`;
@@ -5770,10 +5824,54 @@ app.get('/leads', async (req, res) => {
     function getStatusText(status) {
       const statusMap = {
         'new': 'Neu',
-        'in_progress': 'In Bearbeitung',
-        'done': 'Abgeschlossen'
+        'callback': 'Rückruf nötig',
+        'scheduled': 'Termin vereinbart',
+        'lost': 'Nicht erreicht'
       };
       return statusMap[status] || status;
+    }
+
+    // Quick action: update status
+    async function quickUpdateStatus(leadId, newStatus) {
+      try {
+        const response = await fetch('/api/leads/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: leadId, status: newStatus })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+          const leadIndex = allLeads.findIndex(l => l.id === leadId);
+          if (leadIndex !== -1) {
+            allLeads[leadIndex].status = newStatus;
+          }
+          if (selectedLead && selectedLead.id === leadId) {
+            selectedLead.status = newStatus;
+          }
+          applyFilters();
+          showToast('Status aktualisiert');
+        } else {
+          showToast('Fehler beim Aktualisieren');
+        }
+      } catch (err) {
+        console.error('Error updating status:', err);
+        showToast('Fehler beim Aktualisieren');
+      }
+    }
+
+    // Open appointment modal with lead data
+    function openAppointmentModal(leadId, name, phone) {
+      const lead = allLeads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      document.getElementById('aptPatientName').value = name || '';
+      document.getElementById('aptPhone').value = phone || '';
+      document.getElementById('aptReason').value = lead.concern || '';
+      
+      selectedLead = lead;
+      document.getElementById('appointmentModal').style.display = 'block';
     }
 
     // Select lead
