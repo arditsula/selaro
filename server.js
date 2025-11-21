@@ -1089,6 +1089,422 @@ app.get('/', (req, res) => {
   res.type('html').send(html);
 });
 
+// Dashboard page - shows stats and recent leads
+app.get('/dashboard', async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
+
+    // Fetch all leads
+    const { data: allLeads, error } = await supabase
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching leads for dashboard:', error);
+      return res
+        .status(500)
+        .type('html')
+        .send('<h1>Fehler beim Laden des Dashboards</h1><p>' + error.message + '</p>');
+    }
+
+    const leads = allLeads || [];
+    
+    // Compute stats
+    const newRequestsToday = leads.filter(l => l.created_at >= todayIso).length;
+    const acuteCasesToday = leads.filter(l => l.created_at >= todayIso && l.urgency === 'akut').length;
+    const openLeads = leads.filter(l => l.status === 'new').length;
+    const recentLeads = leads.slice(0, 5);
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – Selaro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: #0f172a;
+      color: white;
+      padding: 2rem 0;
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .sidebar-logo {
+      padding: 0 1.5rem 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .logo-subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .nav-menu {
+      list-style: none;
+    }
+
+    .nav-item {
+      padding: 0 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0.75rem 1rem;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .nav-link.active {
+      background: #00C896;
+      color: #0f172a;
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      font-size: 16px;
+    }
+
+    /* Main Content */
+    .main-container {
+      flex: 1;
+      margin-left: 260px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 70px;
+    }
+
+    .top-bar-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .demo-badge {
+      background: #eff6ff;
+      color: #1e40af;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 500;
+      font-size: 12px;
+    }
+
+    .content {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    /* Recent Leads */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 1rem;
+      margin-top: 2rem;
+    }
+
+    .leads-table {
+      background: white;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: #f9fafb;
+      padding: 1rem;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover {
+      background: #f9fafb;
+    }
+
+    .urgency-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .urgency-akut {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .urgency-normal {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 200px;
+        padding: 1rem 0;
+      }
+
+      .main-container {
+        margin-left: 200px;
+      }
+
+      .top-bar {
+        padding: 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        height: auto;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 13px;
+      }
+
+      td, th {
+        padding: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">Selaro</div>
+      <div class="logo-subtitle">AI Reception</div>
+    </div>
+    
+    <nav>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="/dashboard" class="nav-link active">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/simulate" class="nav-link">
+            <span class="nav-icon">💬</span>
+            <span>Simulator</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/leads" class="nav-link">
+            <span class="nav-icon">📋</span>
+            <span>Leads</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/settings" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Einstellungen</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <h1 class="top-bar-title">Dashboard</h1>
+      <div class="top-bar-right">
+        <span>Zahnarztpraxis Stela Xhelili</span>
+        <span class="demo-badge">Demo</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Neue Anfragen (heute)</div>
+          <div class="stat-number">${newRequestsToday}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Akutfälle (heute)</div>
+          <div class="stat-number">${acuteCasesToday}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Offene Leads</div>
+          <div class="stat-number">${openLeads}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Leads insgesamt</div>
+          <div class="stat-number">${leads.length}</div>
+        </div>
+      </div>
+
+      <!-- Recent Leads -->
+      <h2 class="section-title">Zuletzt eingegangene Anfragen</h2>
+      <div class="leads-table">
+        ${recentLeads.length > 0 ? `
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Grund</th>
+                <th>Dringlichkeit</th>
+                <th>Zeitstempel</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recentLeads.map(lead => `
+                <tr>
+                  <td>${lead.name || '-'}</td>
+                  <td>${lead.reason || '-'}</td>
+                  <td><span class="urgency-badge urgency-${lead.urgency || 'normal'}">${lead.urgency || 'normal'}</span></td>
+                  <td>${new Date(lead.created_at).toLocaleString('de-DE')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : `
+          <div class="empty-state">
+            <p>Noch keine Anfragen vorhanden</p>
+          </div>
+        `}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+    res.type('html').send(html);
+  } catch (err) {
+    console.error('Unexpected error loading dashboard:', err);
+    res.status(500).type('html').send('<h1>Fehler</h1><p>' + err.message + '</p>');
+  }
+});
+
 // Simulator page - premium SaaS UI with glassmorphism to test the AI receptionist
 app.get('/simulate', (req, res) => {
   res.send(`
