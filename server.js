@@ -3255,6 +3255,9 @@ app.get('/dashboard', async (req, res) => {
                       <div class="activity-time">${time} · Neue Anfrage</div>
                       <div class="activity-patient">${activity.name || 'Unbekannt'}</div>
                       <div class="activity-reason">${activity.concern || activity.reason || 'Grund nicht angegeben'} ${urgencyText}</div>
+                      <div style="margin-top: 8px;">
+                        <a href="/leads?lead=${activity.id}" class="action-link" style="font-size: 12px; color: rgba(255,255,255,0.8); text-decoration: none;">Details ansehen →</a>
+                      </div>
                     </div>
                   </div>
                 `;
@@ -3284,6 +3287,10 @@ app.get('/dashboard', async (req, res) => {
                       <div class="urgent-case-name">${lead.name || 'Unbekannt'}</div>
                       <div class="urgent-case-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
                       <div class="urgent-case-phone">${phone}</div>
+                      <div style="margin-top: 8px; display: flex; gap: 12px;">
+                        <a href="/leads?lead=${lead.id}" class="action-link">Details</a>
+                        <button class="action-link" style="background: none; border: none; padding: 0; cursor: pointer;" onclick="window.dashboardActions.openAppointmentModal('${lead.id}', '${(lead.name || '').replace(/'/g, "\\'")}', '${(lead.phone || '').replace(/'/g, "\\'")}')" data-testid="button-appointment-${lead.id}">Termin</button>
+                      </div>
                     </div>
                   </div>
                 `;
@@ -3352,6 +3359,10 @@ app.get('/dashboard', async (req, res) => {
                       <div class="callback-queue-phone">${phone}</div>
                       <div class="callback-queue-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
                       <div class="callback-queue-time">${createdTime}</div>
+                      <div style="margin-top: 8px; display: flex; gap: 12px;">
+                        <a href="/leads?lead=${lead.id}" class="action-link">Details</a>
+                        <button class="action-link" style="background: none; border: none; padding: 0; cursor: pointer;" onclick="window.dashboardActions.markCallbackDone('${lead.id}')" data-testid="button-callback-done-${lead.id}">Erledigt</button>
+                      </div>
                     </div>
                   </div>
                 `;
@@ -3627,6 +3638,38 @@ app.get('/dashboard', async (req, res) => {
       </div>
     </div>
   </div>
+
+  <script>
+    // Dashboard action handlers for quick actions
+    window.dashboardActions = {
+      openAppointmentModal: function(leadId, name, phone) {
+        // Navigate to /leads and pass lead ID for opening modal
+        window.location.href = '/leads?lead=' + encodeURIComponent(leadId) + '&action=appointment';
+      },
+      markCallbackDone: function(leadId) {
+        // Update status to "lost" (Nicht erreicht)
+        fetch('/api/leads/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: leadId, status: 'lost' })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) {
+            // Show success message and refresh
+            alert('Status aktualisiert - Seite wird neu geladen');
+            location.reload();
+          } else {
+            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+          }
+        })
+        .catch(err => {
+          console.error('Error:', err);
+          alert('Fehler beim Aktualisieren');
+        });
+      }
+    };
+  </script>
 </body>
 </html>
     `;
