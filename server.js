@@ -3820,6 +3820,9 @@ app.post('/api/twilio/voice/step', async (req, res) => {
     // Use getClinic() to load clinic data
     const clinic = await getClinic();
     
+    // Log to verify fresh instructions are being used
+    console.log('📞 [Twilio] AI using clinic instructions:', clinic.instructions?.slice(0, 120));
+    
     // Build unified system prompt
     const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions);
     
@@ -3947,6 +3950,9 @@ app.post('/api/simulate', async (req, res) => {
     
     // Use the same getClinic() helper
     const clinic = await getClinic();
+    
+    // Log to verify fresh instructions are being used
+    console.log('💬 [Simulator] AI using clinic instructions:', clinic.instructions?.slice(0, 120));
     
     // Build unified system prompt (same as Twilio)
     const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions);
