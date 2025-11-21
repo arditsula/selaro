@@ -2086,6 +2086,21 @@ app.get('/dashboard', async (req, res) => {
     const totalAcute = leads.filter(l => l.urgency === 'akut').length;
     const totalNormal = leads.filter(l => l.urgency !== 'akut' && l.urgency).length;
 
+    // Group leads by status for Kanban board
+    const statusGroups = {
+      'neu': leads.filter(l => l.status === 'new').slice(0, 5),
+      'rueckruf': leads.filter(l => l.status === 'callback').slice(0, 5),
+      'termin': leads.filter(l => l.status === 'scheduled').slice(0, 5),
+      'nicht_erreicht': leads.filter(l => l.status === 'lost').slice(0, 5)
+    };
+    
+    const statusCounts = {
+      'neu': leads.filter(l => l.status === 'new').length,
+      'rueckruf': leads.filter(l => l.status === 'callback').length,
+      'termin': leads.filter(l => l.status === 'scheduled').length,
+      'nicht_erreicht': leads.filter(l => l.status === 'lost').length
+    };
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2513,6 +2528,161 @@ app.get('/dashboard', async (req, res) => {
       }
     }
 
+    /* Kanban Board Styling */
+    .kanban-section {
+      margin-top: 2rem;
+    }
+
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .kanban-column {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 500px;
+    }
+
+    .kanban-header {
+      background: #f9fafb;
+      padding: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kanban-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin: 0;
+    }
+
+    .kanban-count {
+      background: #e5e7eb;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .kanban-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .kanban-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .kanban-card:hover {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+
+    .card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    .card-reason {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-urgency {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      text-transform: capitalize;
+    }
+
+    .urgency-badge-akut {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .urgency-badge-normal {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .card-time {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .kanban-empty {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 13px;
+      padding: 1.5rem 0.5rem;
+    }
+
+    .kanban-more {
+      text-align: center;
+      font-size: 12px;
+      color: #3b82f6;
+      font-weight: 600;
+      padding: 0.5rem;
+      cursor: pointer;
+    }
+
+    .kanban-more:hover {
+      color: #2563eb;
+    }
+
+    @media (max-width: 1200px) {
+      .kanban-board {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .kanban-column {
+        height: 400px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .kanban-board {
+        grid-template-columns: 1fr;
+      }
+
+      .kanban-column {
+        height: 300px;
+      }
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 200px;
@@ -2706,6 +2876,120 @@ app.get('/dashboard', async (req, res) => {
                   <span>Akut: <strong>${totalAcute}</strong></span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Kanban Status Board -->
+      <section class="kanban-section">
+        <h2 class="section-title">Lead-Status</h2>
+        <div class="kanban-board">
+          <!-- Column 1: Neu -->
+          <div class="kanban-column">
+            <div class="kanban-header">
+              <h3>Neu</h3>
+              <span class="kanban-count">${statusCounts.neu}</span>
+            </div>
+            <div class="kanban-items">
+              ${statusGroups.neu.length > 0 ? `
+                ${statusGroups.neu.map(lead => {
+                  const time = new Date(lead.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                  const urgencyClass = lead.urgency === 'akut' ? 'urgency-badge-akut' : 'urgency-badge-normal';
+                  return `
+                    <div class="kanban-card">
+                      <div class="card-name">${lead.name || 'Unbekannt'}</div>
+                      <div class="card-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="card-footer">
+                        <span class="card-urgency ${urgencyClass}">${lead.urgency || 'normal'}</span>
+                        <span class="card-time">${time}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+                ${statusCounts.neu > 5 ? `<div class="kanban-more">+${statusCounts.neu - 5} weitere</div>` : ''}
+              ` : `<div class="kanban-empty">Keine Leads</div>`}
+            </div>
+          </div>
+
+          <!-- Column 2: Rückruf nötig -->
+          <div class="kanban-column">
+            <div class="kanban-header">
+              <h3>Rückruf nötig</h3>
+              <span class="kanban-count">${statusCounts.rueckruf}</span>
+            </div>
+            <div class="kanban-items">
+              ${statusGroups.rueckruf.length > 0 ? `
+                ${statusGroups.rueckruf.map(lead => {
+                  const time = new Date(lead.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                  const urgencyClass = lead.urgency === 'akut' ? 'urgency-badge-akut' : 'urgency-badge-normal';
+                  return `
+                    <div class="kanban-card">
+                      <div class="card-name">${lead.name || 'Unbekannt'}</div>
+                      <div class="card-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="card-footer">
+                        <span class="card-urgency ${urgencyClass}">${lead.urgency || 'normal'}</span>
+                        <span class="card-time">${time}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+                ${statusCounts.rueckruf > 5 ? `<div class="kanban-more">+${statusCounts.rueckruf - 5} weitere</div>` : ''}
+              ` : `<div class="kanban-empty">Keine Leads</div>`}
+            </div>
+          </div>
+
+          <!-- Column 3: Termin vereinbart -->
+          <div class="kanban-column">
+            <div class="kanban-header">
+              <h3>Termin vereinbart</h3>
+              <span class="kanban-count">${statusCounts.termin}</span>
+            </div>
+            <div class="kanban-items">
+              ${statusGroups.termin.length > 0 ? `
+                ${statusGroups.termin.map(lead => {
+                  const time = new Date(lead.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                  const urgencyClass = lead.urgency === 'akut' ? 'urgency-badge-akut' : 'urgency-badge-normal';
+                  return `
+                    <div class="kanban-card">
+                      <div class="card-name">${lead.name || 'Unbekannt'}</div>
+                      <div class="card-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="card-footer">
+                        <span class="card-urgency ${urgencyClass}">${lead.urgency || 'normal'}</span>
+                        <span class="card-time">${time}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+                ${statusCounts.termin > 5 ? `<div class="kanban-more">+${statusCounts.termin - 5} weitere</div>` : ''}
+              ` : `<div class="kanban-empty">Keine Leads</div>`}
+            </div>
+          </div>
+
+          <!-- Column 4: Nicht erreicht -->
+          <div class="kanban-column">
+            <div class="kanban-header">
+              <h3>Nicht erreicht</h3>
+              <span class="kanban-count">${statusCounts.nicht_erreicht}</span>
+            </div>
+            <div class="kanban-items">
+              ${statusGroups.nicht_erreicht.length > 0 ? `
+                ${statusGroups.nicht_erreicht.map(lead => {
+                  const time = new Date(lead.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                  const urgencyClass = lead.urgency === 'akut' ? 'urgency-badge-akut' : 'urgency-badge-normal';
+                  return `
+                    <div class="kanban-card">
+                      <div class="card-name">${lead.name || 'Unbekannt'}</div>
+                      <div class="card-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="card-footer">
+                        <span class="card-urgency ${urgencyClass}">${lead.urgency || 'normal'}</span>
+                        <span class="card-time">${time}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+                ${statusCounts.nicht_erreicht > 5 ? `<div class="kanban-more">+${statusCounts.nicht_erreicht - 5} weitere</div>` : ''}
+              ` : `<div class="kanban-empty">Keine Leads</div>`}
             </div>
           </div>
         </div>
