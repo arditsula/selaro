@@ -2482,6 +2482,73 @@ app.get('/dashboard', async (req, res) => {
       font-size: 14px;
     }
 
+    /* Appointments Widget Styling */
+    .appointments-section {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .appointments-card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .appointments-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .appointment-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      transition: background 0.15s ease;
+    }
+
+    .appointment-item:hover {
+      background: #f9fafb;
+    }
+
+    .appointment-time {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e40af;
+      min-width: 50px;
+      flex-shrink: 0;
+    }
+
+    .appointment-content {
+      flex: 1;
+    }
+
+    .appointment-patient {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    .appointment-reason {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 0.25rem;
+    }
+
+    .appointment-phone {
+      font-size: 12px;
+      color: #9ca3af;
+      font-family: 'Courier New', monospace;
+    }
+
+    .appointments-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
     /* Analytics Styling */
     .analytics-section {
       margin-top: 2rem;
@@ -2919,6 +2986,35 @@ app.get('/dashboard', async (req, res) => {
           ` : `
             <div class="urgent-cases-empty">
               <p>Heute wurden keine Akutfälle gemeldet. 👍</p>
+            </div>
+          `}
+        </div>
+      </section>
+
+      <!-- Today's Appointments Widget -->
+      <section class="appointments-section">
+        <h2 class="section-title">📅 Heutige Termine</h2>
+        <div class="appointments-card">
+          ${appointments.length > 0 ? `
+            <div class="appointments-list">
+              ${appointments.map((apt, index) => {
+                const time = apt.appointment_time ? apt.appointment_time.substring(0, 5) : '--:--';
+                const phone = apt.patient_phone || 'Keine Nummer';
+                return `
+                  <div class="appointment-item" ${index < appointments.length - 1 ? 'style="border-bottom: 1px solid #e5e7eb;"' : ''}>
+                    <div class="appointment-time">${time}</div>
+                    <div class="appointment-content">
+                      <div class="appointment-patient">${apt.patient_name || 'Unbekannt'}</div>
+                      <div class="appointment-reason">${apt.reason || 'Grund nicht angegeben'}</div>
+                      <div class="appointment-phone">${phone}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : `
+            <div class="appointments-empty">
+              <p>Für heute sind keine Termine eingetragen.</p>
             </div>
           `}
         </div>
