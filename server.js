@@ -64,16 +64,11 @@ const conversationStates = new Map();
 // Key: sessionId (generated on first message), Value: { messages: [], leadSaved: false }
 const simulatorSessions = new Map();
 
-// In-memory clinic cache
-let cachedClinic = null;
-
 /**
- * Fetch and cache clinic data from Supabase
+ * Fetch clinic data from Supabase (always fresh, no caching)
  * Returns the full clinic object { id, name, phone_number, instructions, created_at }
  */
 async function getClinic() {
-  if (cachedClinic) return cachedClinic;
-
   const { data, error } = await supabase
     .from('clinics')
     .select('*')
@@ -85,7 +80,6 @@ async function getClinic() {
     throw error;
   }
 
-  cachedClinic = data;
   return data;
 }
 
@@ -3227,7 +3221,67 @@ app.get('/leads', async (req, res) => {
   }
 });
 
-// Settings page - Show clinic configuration
+// API endpoint to update clinic settings
+app.post('/api/clinic/update', async (req, res) => {
+  try {
+    const { name, phone_number, address, instructions } = req.body;
+    
+    // Validate input
+    if (!name || !name.trim()) {
+      return res.status(400).json({ ok: false, error: 'Praxisname ist erforderlich' });
+    }
+    
+    if (!phone_number || !phone_number.trim()) {
+      return res.status(400).json({ ok: false, error: 'Telefonnummer ist erforderlich' });
+    }
+    
+    // Check Supabase availability
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'Datenbank nicht konfiguriert' });
+    }
+    
+    // Determine clinic ID
+    const clinicId = process.env.CLINIC_ID;
+    if (!clinicId) {
+      return res.status(500).json({ ok: false, error: 'Klinik-ID nicht konfiguriert' });
+    }
+    
+    // Build update payload
+    const updateData = {
+      name: name.trim(),
+      phone_number: phone_number.trim(),
+      instructions: instructions ? instructions.trim() : ''
+    };
+    
+    // Add address if it was provided (and not just "-")
+    if (address && address.trim() && address.trim() !== '-') {
+      updateData.address = address.trim();
+    }
+    
+    // Update clinic in Supabase
+    const { data, error } = await supabase
+      .from('clinics')
+      .update(updateData)
+      .eq('id', clinicId)
+      .select();
+    
+    if (error) {
+      console.error('Error updating clinic:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({ ok: false, error: 'Klinik nicht gefunden' });
+    }
+    
+    res.json({ ok: true, clinic: data[0] });
+  } catch (err) {
+    console.error('Unexpected error updating clinic:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Settings page - Show clinic configuration (editable)
 app.get('/settings', async (req, res) => {
   try {
     let clinic = null;
@@ -3479,6 +3533,103 @@ app.get('/settings', async (req, res) => {
       font-size: 13px;
       color: #6b7280;
       line-height: 1.5;
+      margin-bottom: 0;
+    }
+
+    /* Input Styles for Left Card */
+    .settings-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.95);
+      transition: all 0.2s ease;
+    }
+
+    .settings-input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .settings-input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+    }
+
+    /* Button Styles */
+    .save-button {
+      align-self: flex-end;
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: auto;
+    }
+
+    .save-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .save-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Settings Form Container */
+    .settings-form {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 0;
+    }
+
+    .form-left {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .form-right {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(34, 197, 94, 0.95);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.error {
+      background: rgba(239, 68, 68, 0.95);
     }
 
     /* Error/No Clinic State */
