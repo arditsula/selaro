@@ -5628,6 +5628,101 @@ app.get('/leads', async (req, res) => {
       transform: scale(1.02);
     }
 
+    /* Timeline Section */
+    .timeline-section {
+      margin-top: 28px;
+      margin-bottom: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .timeline-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    .timeline-events {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .timeline-event {
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .timeline-dot {
+      min-width: 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00c896;
+      margin-top: 5px;
+    }
+
+    .timeline-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .timeline-event-type {
+      font-weight: 600;
+      color: white;
+    }
+
+    .timeline-event-time {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Appointments Section */
+    .appointments-section {
+      margin-top: 28px;
+      margin-bottom: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .appointments-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .appointments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .appointment-row {
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.5;
+    }
+
+    .appointments-empty {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      font-style: italic;
+      padding: 10px;
+    }
+
     /* Modal */
     .modal {
       display: none;
@@ -5913,6 +6008,22 @@ app.get('/leads', async (req, res) => {
           <button class="save-btn" id="saveNotesBtn">Notizen speichern</button>
         </div>
 
+        <!-- Timeline Section -->
+        <div class="timeline-section">
+          <div class="timeline-title">Verlauf</div>
+          <div class="timeline-events" id="timelineEvents">
+            <!-- Populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Appointments Section -->
+        <div class="appointments-section">
+          <div class="appointments-title">Termine dieses Patienten</div>
+          <div class="appointments-list" id="appointmentsList">
+            <!-- Populated by JavaScript -->
+          </div>
+        </div>
+
         <button class="appointment-btn" id="appointmentBtn">Termin eintragen</button>
       </div>
     </div>
@@ -5983,6 +6094,8 @@ app.get('/leads', async (req, res) => {
     const detailTime = document.getElementById('detailTime');
     const notesTextarea = document.getElementById('notesTextarea');
     const saveNotesBtn = document.getElementById('saveNotesBtn');
+    const timelineEvents = document.getElementById('timelineEvents');
+    const appointmentsList = document.getElementById('appointmentsList');
 
     // Apply filters
     function applyFilters() {
@@ -6120,6 +6233,89 @@ app.get('/leads', async (req, res) => {
       document.getElementById('appointmentModal').style.display = 'block';
     }
 
+    // Format date to German locale
+    function formatDate(date) {
+      if (!date) return '-';
+      const d = new Date(date);
+      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function formatDateTime(date) {
+      if (!date) return '-';
+      const d = new Date(date);
+      return d.toLocaleString('de-DE', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Build timeline for lead
+    function buildTimeline(lead) {
+      const events = [];
+      
+      // Lead created event
+      if (lead.created_at) {
+        events.push({
+          type: 'Lead erstellt',
+          timestamp: lead.created_at,
+          detail: 'Von der AI-Rezeption erfasst'
+        });
+      }
+      
+      // Status change event (current status)
+      if (lead.status) {
+        const statusText = getStatusText(lead.status);
+        events.push({
+          type: 'Status aktualisiert',
+          timestamp: lead.updated_at || lead.created_at,
+          detail: \`Status: \${statusText}\`
+        });
+      }
+      
+      // Sort by timestamp (reverse chronological)
+      events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      // Render timeline
+      timelineEvents.innerHTML = events.map(event => \`
+        <div class="timeline-event">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-event-type">\${event.type}</div>
+            <div class="timeline-event-time">\${formatDateTime(event.timestamp)}</div>
+            \${event.detail ? \`<div style="font-size: 12px; color: rgba(255, 255, 255, 0.6);">\${event.detail}</div>\` : ''}
+          </div>
+        </div>
+      \`).join('');
+    }
+
+    // Fetch and display appointments for lead
+    async function loadAppointments(lead) {
+      try {
+        // Fetch appointments from server (by phone number matching)
+        const response = await fetch(\`/api/appointments/list?phone=\${encodeURIComponent(lead.phone)}\`);
+        const result = await response.json();
+        
+        if (result.ok && result.appointments && result.appointments.length > 0) {
+          appointmentsList.innerHTML = result.appointments.map(apt => \`
+            <div class="appointment-row">
+              <strong>\${formatDate(apt.date)} · \${(apt.time || '').substring(0, 5)}</strong>
+              <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7); margin-top: 4px;">
+                \${apt.reason || 'Grund nicht angegeben'}
+              </div>
+            </div>
+          \`).join('');
+        } else {
+          appointmentsList.innerHTML = '<div class="appointments-empty">Für diesen Patienten sind noch keine Termine eingetragen.</div>';
+        }
+      } catch (err) {
+        console.error('Error loading appointments:', err);
+        appointmentsList.innerHTML = '<div class="appointments-empty">Fehler beim Laden der Termine.</div>';
+      }
+    }
+
     // Select lead
     function selectLead(index) {
       selectedLead = filteredLeads[index];
@@ -6132,6 +6328,12 @@ app.get('/leads', async (req, res) => {
       detailInsurance.textContent = selectedLead.insurance || '-';
       detailTime.textContent = selectedLead.preferred_time || selectedLead.requested_time || '-';
       notesTextarea.value = selectedLead.notes || '';
+      
+      // Build timeline
+      buildTimeline(selectedLead);
+      
+      // Load appointments
+      loadAppointments(selectedLead);
       
       // Show panel
       detailPanel.classList.add('show');
