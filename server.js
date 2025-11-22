@@ -742,6 +742,25 @@ function formatMemoryInstructions(memory, missingFields) {
 }
 
 /**
+ * Compute follow-up status for a lead
+ * Lead is overdue if created > 60 minutes ago AND status not "Termin vereinbart" or "Nicht erreicht"
+ */
+function computeFollowupStatus(lead, now = new Date()) {
+  const created = new Date(lead.created_at);
+  const minutesWaiting = Math.floor((now - created) / 60000);
+  
+  // Overdue if waiting > 60 minutes AND status not scheduled/lost
+  const isOverdue = minutesWaiting > 60 && 
+    lead.status !== 'scheduled' && 
+    lead.status !== 'lost';
+  
+  return {
+    is_overdue: isOverdue,
+    minutes_waiting: minutesWaiting
+  };
+}
+
+/**
  * Unified system prompt for AI receptionist (used in both Twilio and simulator)
  * Enhanced with intelligent memory tracking and missing field detection
  */
@@ -2415,6 +2434,15 @@ app.get('/dashboard', async (req, res) => {
     const callbackQueue = callbackQueueAll.slice(0, 10);
     const callbackQueueCount = callbackQueueAll.length;
 
+    // Compute overdue leads (waiting > 60 min, not scheduled/lost)
+    const now = new Date();
+    const overdueLeads = leads
+      .map(l => ({ ...l, followup: computeFollowupStatus(l, now) }))
+      .filter(l => l.followup.is_overdue)
+      .sort((a, b) => b.followup.minutes_waiting - a.followup.minutes_waiting)
+      .slice(0, 5);
+    const totalOverdue = leads.filter(l => computeFollowupStatus(l, now).is_overdue).length;
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -3287,6 +3315,94 @@ app.get('/dashboard', async (req, res) => {
       color: #2563eb;
     }
 
+    /* Overdue Callbacks Widget */
+    .overdue-section {
+      margin-bottom: 2rem;
+    }
+
+    .overdue-card {
+      background: white;
+      border: 1px solid #fecaca;
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+
+    .overdue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .overdue-item {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+    }
+
+    .overdue-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .overdue-content {
+      flex: 1;
+    }
+
+    .overdue-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #991b1b;
+    }
+
+    .overdue-reason {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .overdue-waiting {
+      font-size: 11px;
+      color: #dc2626;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .overdue-empty {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 13px;
+      padding: 1.5rem 0.5rem;
+    }
+
+    /* Reminder Snackbar */
+    .reminder-snackbar {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      border-radius: 0.5rem;
+      padding: 1rem 1.5rem;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 500;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
     @media (max-width: 1200px) {
       .kanban-board {
         grid-template-columns: repeat(2, 1fr);
@@ -3531,6 +3647,42 @@ app.get('/dashboard', async (req, res) => {
           ` : `
             <div class="appointments-empty">
               <p>Für heute sind keine Termine eingetragen.</p>
+            </div>
+          `}
+        </div>
+      </section>
+
+      <!-- Overdue Callbacks Widget -->
+      <section class="overdue-section">
+        <h2 class="section-title">⏰ Überfällige Rückrufe</h2>
+        <div class="overdue-card">
+          ${overdueLeads.length > 0 ? `
+            <div class="overdue-list">
+              ${overdueLeads.map((lead, index) => {
+                const mins = lead.followup.minutes_waiting;
+                const urgencyBadge = lead.urgency === 'akut' ? '<span style="background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 11px; font-weight: 600;">akut</span>' : '';
+                return `
+                  <div class="overdue-item" ${index < overdueLeads.length - 1 ? 'style="border-bottom: 1px solid #fecaca;"' : ''}>
+                    <div class="overdue-icon">⏰</div>
+                    <div class="overdue-content">
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <div class="overdue-name">${lead.name || 'Unbekannt'}</div>
+                        ${urgencyBadge}
+                      </div>
+                      <div class="overdue-reason">${lead.concern || lead.reason || 'Grund nicht angegeben'}</div>
+                      <div class="overdue-waiting">Wartet seit ${mins} Minuten</div>
+                      <div style="margin-top: 8px; display: flex; gap: 12px;">
+                        <a href="/leads?lead=${lead.id}" class="action-link" style="color: #dc2626;">Details</a>
+                        <button class="action-link" style="background: none; border: none; padding: 0; cursor: pointer; color: #dc2626;" onclick="window.dashboardActions.quickUpdateStatus('${lead.id}', 'lost')" data-testid="button-overdue-mark-${lead.id}">Erledigt</button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : `
+            <div class="overdue-empty">
+              <p>Keine überfälligen Rückrufe. Gut gemacht! 👍</p>
             </div>
           `}
         </div>
