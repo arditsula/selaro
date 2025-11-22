@@ -6422,6 +6422,618 @@ app.post('/api/clinic/update', async (req, res) => {
   }
 });
 
+// Doctor View - Daily agenda with print support
+app.get('/arzt', async (req, res) => {
+  try {
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch appointments for today from Supabase
+    const { data: appointments, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('date', today)
+      .order('time', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching appointments:', error);
+      return res.status(500).type('html').send('<h1>Fehler beim Laden der Agenda</h1>');
+    }
+    
+    const appointmentsData = appointments || [];
+    const todayFormatted = new Date(today).toLocaleDateString('de-DE', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    // Calculate summary stats
+    const totalAppointments = appointmentsData.length;
+    const acuteAppointments = appointmentsData.filter(apt =>
+      apt.reason && (apt.reason.toLowerCase().includes('zahnschmerzen') || 
+                     apt.reason.toLowerCase().includes('schmerz') ||
+                     apt.reason.toLowerCase().includes('akut'))
+    ).length;
+    
+    // Render appointment cards
+    const appointmentCards = appointmentsData.map(apt => {
+      const time = apt.time ? apt.time.substring(0, 5) : '--:--';
+      const isAcute = apt.reason && (apt.reason.toLowerCase().includes('zahnschmerzen') || 
+                                     apt.reason.toLowerCase().includes('schmerz') ||
+                                     apt.reason.toLowerCase().includes('akut'));
+      const isCleaning = apt.reason && (apt.reason.toLowerCase().includes('reinigung') || 
+                                       apt.reason.toLowerCase().includes('prophylaxe'));
+      const isCheckup = apt.reason && apt.reason.toLowerCase().includes('kontrolle');
+      
+      let badgeColor = '#6b7280'; // gray
+      if (isAcute) badgeColor = '#ef4444'; // red
+      if (isCleaning) badgeColor = '#10b981'; // green
+      if (isCheckup) badgeColor = '#3b82f6'; // blue
+      
+      return `
+        <div class="agenda-card" data-testid="card-appointment-${apt.id}">
+          <div class="agenda-time">${time}</div>
+          <div class="agenda-content">
+            <div class="agenda-patient">${apt.patient_name || 'Unbekannt'}</div>
+            <div class="agenda-reason">${apt.reason || 'Grund nicht angegeben'}</div>
+            <div class="agenda-phone">${apt.phone || 'Keine Nummer'}</div>
+            ${apt.notes ? `<div class="agenda-notes">Notizen: ${apt.notes}</div>` : ''}
+          </div>
+          <div class="agenda-badge" style="background-color: ${badgeColor}; color: white;">
+            ${isAcute ? 'Akut' : isCheckup ? 'Kontrolle' : isCleaning ? 'Reinigung' : 'Sonstiges'}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heutige Agenda – Selaro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: white;
+    }
+
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 280px;
+      height: 100vh;
+      background: rgba(30, 41, 59, 0.9);
+      backdrop-filter: blur(10px);
+      padding: 24px 0;
+      overflow-y: auto;
+      z-index: 1000;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-logo {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 0 20px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      text-decoration: none;
+      color: white;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 12px 12px;
+    }
+
+    .nav-item {
+      margin-bottom: 8px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .nav-link.active {
+      background: rgba(0, 200, 150, 0.2);
+      color: white;
+      border-left: 3px solid #00c896;
+      padding-left: 13px;
+    }
+
+    .nav-icon {
+      font-size: 18px;
+    }
+
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 280px;
+      right: 0;
+      height: 70px;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      z-index: 100;
+    }
+
+    .top-bar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .top-bar-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .top-bar-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .print-btn {
+      padding: 10px 16px;
+      background: rgba(0, 200, 150, 0.2);
+      border: 1px solid #00c896;
+      color: #00c896;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .print-btn:hover {
+      background: rgba(0, 200, 150, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .main-container {
+      margin-left: 280px;
+      margin-top: 70px;
+      padding: 40px;
+      flex: 1;
+    }
+
+    .summary-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .summary-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .summary-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #00c896;
+    }
+
+    .agenda-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .agenda-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 20px;
+      align-items: start;
+      transition: all 0.2s ease;
+      hover: transform translateY(-2px);
+    }
+
+    .agenda-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .agenda-time {
+      font-size: 24px;
+      font-weight: 700;
+      color: #00c896;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .agenda-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .agenda-patient {
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+    }
+
+    .agenda-reason {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .agenda-phone {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .agenda-notes {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    .agenda-badge {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      min-width: 70px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .empty-state p {
+      font-size: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 240px;
+      }
+
+      .top-bar {
+        left: 240px;
+        padding: 0 20px;
+      }
+
+      .main-container {
+        margin-left: 240px;
+        padding: 24px;
+      }
+
+      .agenda-card {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .agenda-time {
+        font-size: 18px;
+        min-width: auto;
+      }
+
+      .summary-bar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .top-bar-title {
+        font-size: 20px;
+      }
+    }
+
+    /* PRINT STYLES */
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+
+      .sidebar,
+      .top-bar,
+      .print-btn,
+      .print-container {
+        display: none !important;
+      }
+
+      .main-container {
+        margin-left: 0;
+        margin-top: 0;
+        padding: 0;
+        max-width: 100%;
+      }
+
+      .print-header {
+        display: block !important;
+        margin-bottom: 32px;
+        padding: 0;
+        border-bottom: 2px solid #000;
+        padding-bottom: 20px;
+      }
+
+      .print-practice-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: black;
+        margin-bottom: 4px;
+      }
+
+      .print-practice-address {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 12px;
+      }
+
+      .print-date {
+        font-size: 13px;
+        color: #666;
+        font-weight: 500;
+      }
+
+      .print-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: black;
+        margin-bottom: 24px;
+      }
+
+      .summary-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
+        page-break-inside: avoid;
+      }
+
+      .summary-card {
+        background: white;
+        border: 1px solid #ddd;
+        color: black;
+      }
+
+      .summary-label {
+        color: #666;
+      }
+
+      .summary-number {
+        color: #000;
+      }
+
+      .agenda-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .agenda-card {
+        background: white;
+        border: 1px solid #ddd;
+        color: black;
+        page-break-inside: avoid;
+        grid-template-columns: 80px 1fr 80px;
+      }
+
+      .agenda-time {
+        color: #000;
+        font-weight: 700;
+      }
+
+      .agenda-patient {
+        color: black;
+      }
+
+      .agenda-reason {
+        color: #333;
+      }
+
+      .agenda-phone {
+        color: #666;
+      }
+
+      .agenda-notes {
+        color: #999;
+      }
+
+      .agenda-badge {
+        background: #f0f0f0 !important;
+        color: black !important;
+        border: 1px solid #ddd;
+      }
+
+      .empty-state {
+        color: black;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/" class="sidebar-logo" title="Zur Startseite">
+      <div class="logo-text">Selaro</div>
+      <div class="logo-subtitle">AI Reception</div>
+    </a>
+    
+    <nav>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="/dashboard" class="nav-link">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/simulate" class="nav-link">
+            <span class="nav-icon">💬</span>
+            <span>Simulator</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/leads" class="nav-link">
+            <span class="nav-icon">📋</span>
+            <span>Leads</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/arzt" class="nav-link active">
+            <span class="nav-icon">🩺</span>
+            <span>Arzt-Ansicht</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/settings" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Einstellungen</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h1 class="top-bar-title">Heutige Agenda</h1>
+      <div class="top-bar-subtitle">Überblick für die Zahnärztin</div>
+    </div>
+    <div class="top-bar-right">
+      <button class="print-btn" onclick="window.print()" data-testid="button-print-schedule">
+        <span>🖨</span>
+        <span>Tagesplan drucken</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Print Header (hidden on screen) -->
+    <div class="print-header" style="display: none;">
+      <div class="print-practice-name">Zahnarztpraxis Stela Xhelili</div>
+      <div class="print-practice-address">Karl-Liebknecht-Straße 1, 04107 Leipzig</div>
+      <div class="print-date">Tagesplan für ${todayFormatted}</div>
+    </div>
+
+    <!-- Summary Bar -->
+    <div class="summary-bar">
+      <div class="summary-card">
+        <div class="summary-label">Termine heute</div>
+        <div class="summary-number">${totalAppointments}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Akutfälle</div>
+        <div class="summary-number">${acuteAppointments}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Puffer (geplant)</div>
+        <div class="summary-number">${Math.max(0, 6 - totalAppointments)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Arbeitszeit</div>
+        <div class="summary-number">8:00–19:00</div>
+      </div>
+    </div>
+
+    <!-- Agenda List -->
+    <div class="agenda-list">
+      ${appointmentCards.length > 0 ? appointmentCards : `
+        <div class="empty-state">
+          <p>Heute sind keine Termine eingetragen.</p>
+        </div>
+      `}
+    </div>
+  </div>
+
+  <script>
+    // Print functionality handled by native window.print()
+  </script>
+</body>
+</html>
+    `;
+
+    res.type('html').send(html);
+  } catch (err) {
+    console.error('Error loading doctor view:', err);
+    res.status(500).type('html').send('<h1>Fehler beim Laden der Agenda</h1><p>' + err.message + '</p>');
+  }
+});
+
 // Settings page - Show clinic configuration (editable)
 app.get('/settings', async (req, res) => {
   try {
