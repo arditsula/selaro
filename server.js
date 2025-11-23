@@ -2489,6 +2489,21 @@ app.get('/dashboard', async (req, res) => {
     const notificationsCount = notifications.length;
     const notificationsJSON = JSON.stringify(notifications).replace(/"/g, '&quot;');
 
+    // End-of-day summary metrics
+    const leadsCreatedToday = leads.filter(l => l.created_at >= todayIso);
+    const totalCallsToday = leadsCreatedToday.length;
+    const acuteCallsToday = leadsCreatedToday.filter(l => l.urgency === 'akut').length;
+    const newPatientsToday = leadsCreatedToday.filter(l => l.patient_type === 'neu').length;
+    const appointmentsCountToday = todayAppointmentsCount;
+    const overdueCallsToday = leadsCreatedToday
+      .filter(l => computeFollowupStatus(l, now).is_overdue).length;
+    const todayDate = today.toLocaleDateString('de-DE', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2772,6 +2787,126 @@ app.get('/dashboard', async (req, res) => {
       text-align: center;
       color: #9ca3af;
       font-size: 13px;
+    }
+
+    /* End-of-Day Summary */
+    .eod-summary-section {
+      margin-bottom: 2rem;
+    }
+
+    .eod-summary-card {
+      background: white;
+      border-radius: 1.125rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .eod-summary-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .eod-summary-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    .eod-summary-subtitle {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    .eod-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      padding: 0;
+    }
+
+    .eod-summary-item {
+      padding: 1.5rem 1rem;
+      border-right: 1px solid #e5e7eb;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .eod-summary-item:last-child {
+      border-right: none;
+    }
+
+    .eod-summary-number {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+
+    .eod-summary-label {
+      font-size: 0.85rem;
+      color: #6b7280;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .eod-summary-item.accent-red .eod-summary-number {
+      color: #dc2626;
+    }
+
+    .eod-summary-item.accent-green .eod-summary-number {
+      color: #16a34a;
+    }
+
+    .eod-summary-item.accent-blue .eod-summary-number {
+      color: #2563eb;
+    }
+
+    @media (max-width: 1200px) {
+      .eod-summary-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .eod-summary-item {
+        padding: 1.25rem 0.75rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .eod-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .eod-summary-item:nth-child(2n) {
+        border-right: none;
+      }
+
+      .eod-summary-item:nth-child(2n+1) {
+        border-right: 1px solid #e5e7eb;
+      }
+
+      .eod-summary-item:nth-child(n+4) {
+        border-bottom: 1px solid #e5e7eb;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .eod-summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .eod-summary-item {
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1rem;
+      }
+
+      .eod-summary-item:last-child {
+        border-bottom: none;
+      }
     }
 
     .content {
@@ -3779,6 +3914,38 @@ app.get('/dashboard', async (req, res) => {
             <div style="font-size: 24px; margin-bottom: 0.75rem;">❗</div>
             <div class="stat-label">Unbeantwortet</div>
             <div class="stat-number">${openLeads}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- End-of-Day Summary Section -->
+      <section class="eod-summary-section">
+        <div class="eod-summary-card">
+          <div class="eod-summary-header">
+            <div class="eod-summary-title">Zusammenfassung des Tages</div>
+            <div class="eod-summary-subtitle">Stand: heute, ${todayDate}</div>
+          </div>
+          <div class="eod-summary-grid">
+            <div class="eod-summary-item">
+              <div class="eod-summary-number">${totalCallsToday}</div>
+              <div class="eod-summary-label">Anrufe heute</div>
+            </div>
+            <div class="eod-summary-item accent-red">
+              <div class="eod-summary-number">${acuteCallsToday}</div>
+              <div class="eod-summary-label">Akutfälle</div>
+            </div>
+            <div class="eod-summary-item accent-green">
+              <div class="eod-summary-number">${newPatientsToday > 0 ? newPatientsToday : '–'}</div>
+              <div class="eod-summary-label">Neupatienten</div>
+            </div>
+            <div class="eod-summary-item accent-blue">
+              <div class="eod-summary-number">${appointmentsCountToday}</div>
+              <div class="eod-summary-label">Termine heute</div>
+            </div>
+            <div class="eod-summary-item accent-red">
+              <div class="eod-summary-number">${overdueCallsToday}</div>
+              <div class="eod-summary-label">Überfällige Rückrufe</div>
+            </div>
           </div>
         </div>
       </section>
