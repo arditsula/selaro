@@ -761,6 +761,47 @@ function computeFollowupStatus(lead, now = new Date()) {
 }
 
 /**
+ * Build notifications from leads data
+ * Computes overdue follow-ups and new leads
+ */
+function buildNotifications(leads, now = new Date()) {
+  const notifications = [];
+  
+  // 1. Overdue follow-ups (> 60 min, not scheduled/lost)
+  leads.forEach(lead => {
+    const followup = computeFollowupStatus(lead, now);
+    if (followup.is_overdue) {
+      notifications.push({
+        type: 'followup_overdue',
+        text: `Rückruf überfällig: ${lead.name} – ${lead.reason || 'Grund nicht angegeben'}`,
+        link: `/leads?lead=${lead.id}`,
+        created_at: lead.created_at,
+        minutes_waiting: followup.minutes_waiting,
+        lead_id: lead.id
+      });
+    }
+  });
+  
+  // 2. New leads (last 15 minutes)
+  const fifteenMinutesAgo = new Date(now - 15 * 60000);
+  leads.forEach(lead => {
+    const leadTime = new Date(lead.created_at);
+    if (leadTime > fifteenMinutesAgo) {
+      notifications.push({
+        type: 'new_lead',
+        text: `Neue Anfrage: ${lead.name} – ${lead.reason || 'Grund nicht angegeben'}`,
+        link: `/leads?lead=${lead.id}`,
+        created_at: lead.created_at,
+        lead_id: lead.id
+      });
+    }
+  });
+  
+  // Sort by created_at desc (newest first)
+  return notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+/**
  * Unified system prompt for AI receptionist (used in both Twilio and simulator)
  * Enhanced with intelligent memory tracking and missing field detection
  */
@@ -2443,6 +2484,11 @@ app.get('/dashboard', async (req, res) => {
       .slice(0, 5);
     const totalOverdue = leads.filter(l => computeFollowupStatus(l, now).is_overdue).length;
 
+    // Build notifications for navbar
+    const notifications = buildNotifications(leads, now);
+    const notificationsCount = notifications.length;
+    const notificationsJSON = JSON.stringify(notifications).replace(/"/g, '&quot;');
+
     const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -2581,6 +2627,151 @@ app.get('/dashboard', async (req, res) => {
       border-radius: 999px;
       font-weight: 500;
       font-size: 12px;
+    }
+
+    /* Notification Bell */
+    .notification-bell-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .notification-bell-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      padding: 0.5rem;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .notification-bell-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #dc2626;
+      color: white;
+      border-radius: 999px;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid white;
+    }
+
+    /* Notification Dropdown */
+    .notification-dropdown {
+      position: absolute;
+      top: 60px;
+      right: 0;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 320px;
+      max-height: 400px;
+      overflow-y: auto;
+      display: none;
+      z-index: 1000;
+    }
+
+    .notification-dropdown.open {
+      display: block;
+    }
+
+    .notification-dropdown-header {
+      padding: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .notification-dropdown-content {
+      padding: 0;
+    }
+
+    .notification-item {
+      padding: 0.875rem 1rem;
+      border-bottom: 1px solid #f3f4f6;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .notification-item:last-child {
+      border-bottom: none;
+    }
+
+    .notification-item:hover {
+      background: #f9fafb;
+    }
+
+    .notification-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .notification-item-text {
+      font-size: 13px;
+      color: #111827;
+      font-weight: 500;
+      flex: 1;
+      line-height: 1.3;
+    }
+
+    .notification-item-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .notification-item-badge.overdue {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .notification-item-badge.new-lead {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .notification-item-time {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 0.5rem;
+    }
+
+    .notification-item-link {
+      font-size: 12px;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .notification-item-link:hover {
+      color: #1d4ed8;
+    }
+
+    .notification-dropdown-empty {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 13px;
     }
 
     .content {
@@ -3524,6 +3715,41 @@ app.get('/dashboard', async (req, res) => {
     <div class="top-bar">
       <h1 class="top-bar-title">Dashboard</h1>
       <div class="top-bar-right">
+        <div class="notification-bell-wrapper">
+          <button class="notification-bell-btn" id="notification-bell" title="Benachrichtigungen">
+            🔔
+            ${notificationsCount > 0 ? `<span class="notification-badge">${notificationsCount}</span>` : ''}
+          </button>
+          <div class="notification-dropdown" id="notification-dropdown">
+            <div class="notification-dropdown-header">Benachrichtigungen</div>
+            <div class="notification-dropdown-content">
+              ${notifications.length > 0 ? `
+                ${notifications.map((notif, idx) => {
+                  const time = new Date(notif.created_at);
+                  const now = new Date();
+                  const minAgo = Math.floor((now - time) / 60000);
+                  const timeText = minAgo < 1 ? 'gerade eben' : `vor ${minAgo} min`;
+                  const badgeLabel = notif.type === 'followup_overdue' ? 'Rückruf' : 'Neue Anfrage';
+                  const badgeClass = notif.type === 'followup_overdue' ? 'overdue' : 'new-lead';
+                  return `
+                    <div class="notification-item">
+                      <div class="notification-item-header">
+                        <div class="notification-item-text">${notif.text}</div>
+                        <span class="notification-item-badge ${badgeClass}">${badgeLabel}</span>
+                      </div>
+                      <div class="notification-item-time">${timeText}</div>
+                      <a href="${notif.link}" class="notification-item-link">Details →</a>
+                    </div>
+                  `;
+                }).join('')}
+              ` : `
+                <div class="notification-dropdown-empty">
+                  Zurzeit gibt es keine offenen Benachrichtigungen.
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
         <span>Zahnarztpraxis Stela Xhelili</span>
         <span class="demo-badge">Demo</span>
       </div>
