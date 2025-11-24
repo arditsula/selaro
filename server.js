@@ -5122,6 +5122,10 @@ app.get('/simulate', (req, res) => {
               body: JSON.stringify(body)
             });
             
+            if (!res.ok) {
+              throw new Error('HTTP ' + res.status + ': Failed to get response from AI');
+            }
+            
             const data = await res.json();
             
             if (data.sessionId) {
@@ -5130,6 +5134,7 @@ app.get('/simulate', (req, res) => {
             
             addMessage(data.reply || 'Fehler: Keine Antwort vom Server.', 'ai');
           } catch (err) {
+            console.error('Simulate error:', err);
             addMessage('Entschuldigung, es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.', 'ai');
           } finally {
             // Reset loading state
@@ -8691,12 +8696,18 @@ app.post('/api/simulate', async (req, res) => {
     // Return JSON response with sessionId for client to maintain state
     res.json({ 
       reply,
-      sessionId: sid
+      sessionId: sid,
+      ok: true
     });
     
   } catch (error) {
     console.error('Error in /api/simulate:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ 
+      ok: false,
+      reply: 'Es tut mir leid, es ist ein technischer Fehler aufgetreten. Bitte versuchen Sie es später erneut.',
+      error: 'Internal server error', 
+      details: error.message 
+    });
   }
 });
 
