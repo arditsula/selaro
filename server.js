@@ -5707,6 +5707,73 @@ app.post('/api/leads/update-notes', async (req, res) => {
   }
 });
 
+// API endpoint to create manual lead
+app.post('/api/leads/create-manual', async (req, res) => {
+  try {
+    const { name, phone, reason, urgency, patient_type, insurance_status, preferred_time, internal_notes } = req.body;
+    
+    // Validate required fields
+    if (!isNonEmptyString(name)) {
+      return res.status(400).json({ ok: false, error: 'Name is required' });
+    }
+    if (!isNonEmptyString(phone)) {
+      return res.status(400).json({ ok: false, error: 'Phone is required' });
+    }
+    if (!isNonEmptyString(reason)) {
+      return res.status(400).json({ ok: false, error: 'Reason is required' });
+    }
+    
+    // Sanitize inputs
+    const sanitizedName = sanitizeString(name).substring(0, 200);
+    const sanitizedPhone = sanitizeString(phone).substring(0, 50);
+    const sanitizedReason = sanitizeString(reason).substring(0, 1000);
+    const sanitizedUrgency = ['akut', 'normal'].includes(sanitizeString(urgency)) ? sanitizeString(urgency) : 'normal';
+    const sanitizedPatientType = ['neu', 'bestand'].includes(sanitizeString(patient_type)) ? sanitizeString(patient_type) : 'neu';
+    const sanitizedInsurance = ['gesetzlich', 'privat', 'unbekannt'].includes(sanitizeString(insurance_status)) ? sanitizeString(insurance_status) : 'unbekannt';
+    const sanitizedPreferredTime = sanitizeString(preferred_time).substring(0, 200);
+    const sanitizedNotes = sanitizeString(internal_notes || '').substring(0, 5000);
+    
+    // Determine initial status based on urgency
+    const initialStatus = sanitizedUrgency === 'akut' ? 'callback' : 'new';
+    
+    // Check Supabase availability
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    // Insert into leads table
+    const { data, error } = await supabase
+      .from('leads')
+      .insert([{
+        name: sanitizedName,
+        phone: sanitizedPhone,
+        concern: sanitizedReason,
+        urgency: sanitizedUrgency,
+        patient_type: sanitizedPatientType,
+        insurance: sanitizedInsurance,
+        preferred_time: sanitizedPreferredTime,
+        notes: sanitizedNotes,
+        status: initialStatus,
+        created_at: new Date().toISOString()
+      }])
+      .select();
+    
+    if (error) {
+      console.error('Error creating manual lead:', error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(500).json({ ok: false, error: 'Failed to create lead' });
+    }
+    
+    res.json({ ok: true, lead_id: data[0].id, lead: data[0] });
+  } catch (err) {
+    console.error('Unexpected error creating manual lead:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Leads dashboard HTML (dark theme, German)
 app.get('/leads', async (req, res) => {
   try {
@@ -5826,6 +5893,10 @@ app.get('/leads', async (req, res) => {
 
     .dashboard-header {
       margin-bottom: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 2rem;
     }
 
     .dashboard-title {
@@ -6519,8 +6590,11 @@ app.get('/leads', async (req, res) => {
   <!-- Main Content -->
   <div class="app-content">
     <div class="dashboard-header">
-      <h1 class="dashboard-title">Leads Dashboard</h1>
-      <div class="dashboard-subtitle">Letzte ${data ? data.length : 0} eingegangene Anfragen</div>
+      <div>
+        <h1 class="dashboard-title">Leads Dashboard</h1>
+        <div class="dashboard-subtitle">Letzte ${data ? data.length : 0} eingegangene Anfragen</div>
+      </div>
+      <button class="create-lead-btn" id="createLeadBtn" title="Neue Anfrage erfassen">Neue Anfrage erfassen</button>
     </div>
 
     <!-- Filters -->
