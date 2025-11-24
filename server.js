@@ -987,6 +987,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+app.get('/api/test/config', async (req, res) => {
+  try {
+    console.log("TEST CONFIG ENDPOINT HIT");
+
+    const config = await getClinic();
+    console.log("Loaded clinic config:", config);
+
+    return res.json({ ok: true, config });
+  } catch (err) {
+    console.error("Error loading config:", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('/', (req, res) => {
   const html = `
 <!DOCTYPE html>
