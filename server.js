@@ -8717,9 +8717,18 @@ app.post('/api/twilio/voice/step', async (req, res) => {
 });
 
 // GET endpoint for simulator status check
-app.get('/api/simulate', (req, res) => {
-  console.log('GET /api/simulate hit');
-  res.json({ ok: true, message: 'simulate endpoint working' });
+app.get('/api/simulate', async (req, res) => {
+  try {
+    console.log('GET /api/simulate hit');
+    return res.json({
+      ok: true,
+      message: 'simulate endpoint working',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Error in /api/simulate:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // JSON simulator endpoint - uses the SAME AI receptionist logic as Twilio route
