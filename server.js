@@ -5796,6 +5796,72 @@ app.get('/api/test/config', async (req, res) => {
   }
 });
 
+// Test route to run NLU classification logic on a message
+app.post('/api/test/nlu', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Message is required and must be a non-empty string'
+      });
+    }
+    
+    console.log('[NLU TEST] Analyzing message:', message);
+    
+    // Extract memory from the message
+    console.log('[NLU TEST] Running extractMemoryFromConversation...');
+    const memory = extractMemoryFromConversation([], message);
+    console.log('[NLU TEST] Extracted memory:', memory);
+    
+    // Get missing fields
+    const missingFields = getMissingFields(memory);
+    console.log('[NLU TEST] Missing fields:', missingFields);
+    
+    // Classify urgency
+    console.log('[NLU TEST] Running classifyUrgency...');
+    const urgency = classifyUrgency(memory.reason, message);
+    console.log('[NLU TEST] Classified urgency:', urgency);
+    
+    // Determine intent based on extracted data
+    let intent = 'inquiry';
+    let confidence = 0.5;
+    
+    if (memory.reason && urgency === 'akut') {
+      intent = 'urgent_appointment_request';
+      confidence = 0.95;
+    } else if (memory.reason && memory.preferred_time) {
+      intent = 'appointment_request';
+      confidence = 0.90;
+    } else if (memory.reason) {
+      intent = 'symptom_report';
+      confidence = 0.85;
+    } else if (memory.name || memory.phone) {
+      intent = 'patient_info_provided';
+      confidence = 0.80;
+    }
+    
+    console.log('[NLU TEST] ✅ NLU analysis complete - Intent:', intent, 'Confidence:', confidence);
+    
+    res.json({
+      ok: true,
+      message,
+      intent,
+      confidence,
+      memory,
+      missingFields,
+      urgency
+    });
+  } catch (err) {
+    console.error('[NLU TEST] ❌ Error analyzing message:', err.message);
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
+
 // API endpoint to update lead status
 app.post('/api/leads/update-status', async (req, res) => {
   try {
