@@ -4927,6 +4927,86 @@ app.get('/simulate', (req, res) => {
           transform: none;
         }
 
+        /* Test Simulation Button Area */
+        .test-simulation-area {
+          padding: 16px 28px;
+          background: rgba(255, 255, 255, 0.3);
+          border-top: 1px solid rgba(0, 0, 0, 0.06);
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        #testSimulateBtn {
+          padding: 10px 18px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+          font-family: 'Inter', sans-serif;
+        }
+
+        #testSimulateBtn:hover:not(:disabled) {
+          transform: scale(1.02);
+          box-shadow: 0 3px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        #testSimulateBtn:active:not(:disabled) {
+          transform: scale(0.98);
+        }
+
+        #testSimulateBtn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .simulation-result {
+          margin-top: 12px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 13px;
+          line-height: 1.5;
+          display: none;
+          animation: fadeSlideIn 0.3s ease-out;
+        }
+
+        .simulation-result.show {
+          display: block;
+        }
+
+        .simulation-result.success {
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          color: #047857;
+        }
+
+        .simulation-result.error {
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #991b1b;
+        }
+
+        .simulation-result.loading {
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          color: #1e40af;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .simulation-result-content {
+          word-break: break-word;
+          white-space: pre-wrap;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
           .nav-bar {
@@ -5061,6 +5141,14 @@ app.get('/simulate', (req, res) => {
               <button type="submit" id="sendBtn">Senden</button>
             </form>
           </div>
+
+          <!-- Test Simulation Area -->
+          <div class="test-simulation-area">
+            <button id="testSimulateBtn">🧪 Test Simulation</button>
+            <div class="simulation-result" id="simulationResult">
+              <div class="simulation-result-content" id="simulationContent"></div>
+            </div>
+          </div>
         </div>
       </div>
       </div>
@@ -5071,6 +5159,9 @@ app.get('/simulate', (req, res) => {
         const input = document.getElementById('input');
         const sendBtn = document.getElementById('sendBtn');
         const loadingText = document.getElementById('loadingText');
+        const testSimulateBtn = document.getElementById('testSimulateBtn');
+        const simulationResult = document.getElementById('simulationResult');
+        const simulationContent = document.getElementById('simulationContent');
         
         let sessionId = null;
 
@@ -5143,6 +5234,61 @@ app.get('/simulate', (req, res) => {
             sendBtn.textContent = 'Senden';
             loadingText.classList.remove('visible');
             input.focus();
+          }
+        });
+
+        // Test Simulation Button Handler
+        testSimulateBtn.addEventListener('click', async () => {
+          // Show loading state
+          testSimulateBtn.disabled = true;
+          testSimulateBtn.textContent = '⏳ Simulating…';
+          simulationResult.className = 'simulation-result show loading';
+          simulationContent.textContent = 'Simulation wird ausgeführt…';
+
+          try {
+            const response = await fetch('/api/simulate', {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+              throw new Error('HTTP ' + response.status + ': Server error');
+            }
+
+            const data = await response.json();
+
+            if (data.ok) {
+              // Success state
+              simulationResult.className = 'simulation-result show success';
+              let resultText = '✅ Simulation erfolgreich!\\n\\n';
+              if (data.message) {
+                resultText += 'Message: ' + data.message + '\\n';
+              }
+              if (data.result) {
+                if (data.result.sessionId) {
+                  resultText += 'Session ID: ' + data.result.sessionId + '\\n';
+                }
+                if (data.result.steps && Array.isArray(data.result.steps)) {
+                  resultText += '\\nSteps:\\n' + data.result.steps.join('\\n') + '\\n';
+                }
+                if (data.result.logs) {
+                  resultText += '\\nLogs:\\n' + JSON.stringify(data.result.logs, null, 2) + '\\n';
+                }
+              }
+              simulationContent.textContent = resultText;
+            } else {
+              // Error in response
+              simulationResult.className = 'simulation-result show error';
+              simulationContent.textContent = '❌ Simulation fehlgeschlagen:\\n' + (data.error || 'Unbekannter Fehler');
+            }
+          } catch (error) {
+            // Network or parsing error
+            simulationResult.className = 'simulation-result show error';
+            simulationContent.textContent = '❌ Fehler: ' + error.message;
+          } finally {
+            // Reset button state
+            testSimulateBtn.disabled = false;
+            testSimulateBtn.textContent = '🧪 Test Simulation';
           }
         });
       </script>
