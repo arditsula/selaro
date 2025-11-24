@@ -2515,6 +2515,30 @@ app.get('/dashboard', async (req, res) => {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-primary: #f3f4f6;
+      --bg-secondary: #ffffff;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+      --border-color: #e5e7eb;
+      --sidebar-bg: #0f172a;
+      --sidebar-text: rgba(255, 255, 255, 0.7);
+      --accent: #00C896;
+    }
+
+    body.theme-dark {
+      --bg-primary: #020617;
+      --bg-secondary: #1e293b;
+      --text-primary: #e5e7eb;
+      --text-secondary: #9ca3af;
+      --text-tertiary: #6b7280;
+      --border-color: rgba(148, 163, 184, 0.2);
+      --sidebar-bg: #0f172a;
+      --sidebar-text: rgba(255, 255, 255, 0.7);
+      --accent: #00C896;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -2523,15 +2547,17 @@ app.get('/dashboard', async (req, res) => {
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f3f4f6;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       min-height: 100vh;
       display: flex;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     /* Sidebar */
     .sidebar {
       width: 260px;
-      background: #0f172a;
+      background: var(--sidebar-bg);
       color: white;
       padding: 2rem 0;
       position: fixed;
@@ -2540,6 +2566,7 @@ app.get('/dashboard', async (req, res) => {
       height: 100vh;
       overflow-y: auto;
       z-index: 1000;
+      transition: background-color 0.3s ease;
     }
 
     .sidebar-logo {
@@ -2612,19 +2639,20 @@ app.get('/dashboard', async (req, res) => {
     }
 
     .top-bar {
-      background: white;
-      border-bottom: 1px solid #e5e7eb;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
       padding: 1.5rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       height: 70px;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     .top-bar-title {
       font-size: 24px;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-primary);
     }
 
     .top-bar-right {
@@ -2632,7 +2660,23 @@ app.get('/dashboard', async (req, res) => {
       align-items: center;
       gap: 1rem;
       font-size: 14px;
-      color: #6b7280;
+      color: var(--text-secondary);
+    }
+
+    /* Theme Toggle */
+    .theme-toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0.5rem;
+      transition: all 0.2s ease;
+      border-radius: 0.5rem;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--bg-primary);
+      transform: scale(1.1);
     }
 
     .demo-badge {
@@ -2687,8 +2731,8 @@ app.get('/dashboard', async (req, res) => {
       position: absolute;
       top: 60px;
       right: 0;
-      background: white;
-      border: 1px solid #e5e7eb;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
       border-radius: 0.5rem;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
       width: 320px;
@@ -2696,6 +2740,7 @@ app.get('/dashboard', async (req, res) => {
       overflow-y: auto;
       display: none;
       z-index: 1000;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     .notification-dropdown.open {
@@ -2704,10 +2749,10 @@ app.get('/dashboard', async (req, res) => {
 
     .notification-dropdown-header {
       padding: 1rem;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--border-color);
       font-size: 14px;
       font-weight: 600;
-      color: #111827;
+      color: var(--text-primary);
     }
 
     .notification-dropdown-content {
@@ -2716,7 +2761,7 @@ app.get('/dashboard', async (req, res) => {
 
     .notification-item {
       padding: 0.875rem 1rem;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--border-color);
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -2726,7 +2771,7 @@ app.get('/dashboard', async (req, res) => {
     }
 
     .notification-item:hover {
-      background: #f9fafb;
+      background: var(--bg-primary);
     }
 
     .notification-item-header {
@@ -2739,7 +2784,7 @@ app.get('/dashboard', async (req, res) => {
 
     .notification-item-text {
       font-size: 13px;
-      color: #111827;
+      color: var(--text-primary);
       font-weight: 500;
       flex: 1;
       line-height: 1.3;
@@ -2795,27 +2840,28 @@ app.get('/dashboard', async (req, res) => {
     }
 
     .eod-summary-card {
-      background: white;
+      background: var(--bg-secondary);
       border-radius: 1.125rem;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       overflow: hidden;
+      transition: background-color 0.3s ease;
     }
 
     .eod-summary-header {
       padding: 1.5rem;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--border-color);
     }
 
     .eod-summary-title {
       font-size: 1.2rem;
       font-weight: 600;
-      color: #111827;
+      color: var(--text-primary);
       margin-bottom: 0.25rem;
     }
 
     .eod-summary-subtitle {
       font-size: 0.9rem;
-      color: #9ca3af;
+      color: var(--text-tertiary);
     }
 
     .eod-summary-grid {
@@ -2827,7 +2873,7 @@ app.get('/dashboard', async (req, res) => {
 
     .eod-summary-item {
       padding: 1.5rem 1rem;
-      border-right: 1px solid #e5e7eb;
+      border-right: 1px solid var(--border-color);
       text-align: center;
       display: flex;
       flex-direction: column;
@@ -2842,13 +2888,13 @@ app.get('/dashboard', async (req, res) => {
     .eod-summary-number {
       font-size: 1.8rem;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
     }
 
     .eod-summary-label {
       font-size: 0.85rem;
-      color: #6b7280;
+      color: var(--text-secondary);
       font-weight: 500;
       line-height: 1.3;
     }
@@ -2957,14 +3003,15 @@ app.get('/dashboard', async (req, res) => {
 
     .stat-card {
       padding: 1.5rem;
-      background: #fff;
+      background: var(--bg-secondary);
       border-radius: 1.125rem;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      transition: background-color 0.3s ease;
     }
 
     .stat-label {
       font-size: 0.9rem;
-      color: #6b7280;
+      color: var(--text-secondary);
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -2974,14 +3021,14 @@ app.get('/dashboard', async (req, res) => {
     .stat-number {
       font-size: 1.8rem;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-primary);
     }
 
     /* Section Spacing */
     .section-title {
       font-size: 1.4rem;
       font-weight: 600;
-      color: #111827;
+      color: var(--text-primary);
       margin-bottom: 0.75rem;
       margin-top: 0;
       word-break: break-word;
@@ -3006,10 +3053,11 @@ app.get('/dashboard', async (req, res) => {
     }
 
     .leads-table {
-      background: white;
+      background: var(--bg-secondary);
       border-radius: 1.125rem;
       overflow: hidden;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      transition: background-color 0.3s ease;
     }
 
     table {
@@ -3018,11 +3066,12 @@ app.get('/dashboard', async (req, res) => {
     }
 
     th {
-      background: #f9fafb;
+      background: var(--bg-primary);
       padding: 1rem;
       text-align: left;
       font-size: 12px;
       font-weight: 600;
+      color: var(--text-primary);
       color: #6b7280;
       text-transform: uppercase;
       letter-spacing: 0.5px;
