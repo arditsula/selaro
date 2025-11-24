@@ -5770,6 +5770,31 @@ app.get('/debug/list-leads', async (req, res) => {
   }
 });
 
+// Test route to fetch and verify clinic configuration
+app.get('/api/test/config', async (req, res) => {
+  try {
+    console.log('[TEST] Fetching clinic configuration from Supabase...');
+    const config = await getClinic();
+    console.log('[TEST] ✅ Clinic config fetched successfully:');
+    console.log('[TEST] Full config:', JSON.stringify(config, null, 2));
+    console.log('[TEST] - ID:', config.id);
+    console.log('[TEST] - Name:', config.name);
+    console.log('[TEST] - Phone:', config.phone_number);
+    console.log('[TEST] - Instructions length:', config.instructions ? config.instructions.length : 0);
+    console.log('[TEST] - Created at:', config.created_at);
+    
+    res.json({
+      ok: true,
+      config
+    });
+  } catch (err) {
+    console.error('[TEST] ❌ Error fetching clinic config:', err.message);
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
 
 // API endpoint to update lead status
 app.post('/api/leads/update-status', async (req, res) => {
