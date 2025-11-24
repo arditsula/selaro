@@ -8717,29 +8717,29 @@ app.post('/api/twilio/voice/step', async (req, res) => {
 });
 
 /**
- * Initialize a fresh simulation session
- * Returns: { sessionId, greeting, clinic, steps, logs }
+ * Run full Selaro simulation - initializes session, reads clinic config, simulates one turn
+ * Returns: { sessionId, greeting, clinic, steps, logs, state, firstAIResponse }
  */
-async function initializeSimulation() {
-  console.log('[SIMULATE] 1. Starting simulation initialization...');
+async function runFullSimulation() {
+  console.log('[SIMULATE] Starting full Selaro simulation...');
   const steps = [];
   const logs = [];
 
   try {
     // STEP 1: Create fresh session
-    console.log('[SIMULATE] 2. Creating fresh session...');
+    console.log('[SIMULATE] 1. Creating fresh session...');
     const sessionId = `sim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     steps.push('✅ Created session: ' + sessionId);
-    logs.push('Fresh session created with ID: ' + sessionId);
+    logs.push('Fresh session created');
 
-    // STEP 2: Fetch clinic data
-    console.log('[SIMULATE] 3. Fetching clinic data from Supabase...');
+    // STEP 2: Fetch clinic data from Supabase
+    console.log('[SIMULATE] 2. Fetching clinic from Supabase...');
     const clinic = await getClinic();
     steps.push('✅ Fetched clinic: ' + clinic.name);
-    logs.push('Clinic loaded: ' + clinic.name);
+    logs.push('Clinic: ' + clinic.name);
 
     // STEP 3: Initialize conversation state
-    console.log('[SIMULATE] 4. Initializing conversation state...');
+    console.log('[SIMULATE] 3. Initializing conversation state...');
     const state = {
       messages: [],
       leadSaved: false,
@@ -8754,51 +8754,117 @@ async function initializeSimulation() {
       }
     };
     simulatorSessions.set(sessionId, state);
-    steps.push('✅ Initialized conversation state');
-    logs.push('Conversation state initialized with empty memory');
+    steps.push('✅ Initialized state');
+    logs.push('State initialized with empty memory');
 
-    // STEP 4: Generate greeting
-    console.log('[SIMULATE] 5. Generating initial greeting...');
-    const greeting = 'Guten Tag, Sie sind mit der Zahnarztpraxis ' + clinic.name + ' verbunden. Wie kann ich Ihnen helfen?';
-    steps.push('✅ Generated greeting');
-    logs.push('Greeting: ' + greeting.substring(0, 80) + '...');
-
-    // STEP 5: Build initial system prompt
-    console.log('[SIMULATE] 6. Building system prompt...');
+    // STEP 4: Extract memory and missing fields
+    console.log('[SIMULATE] 4. Extracting memory and missing fields...');
+    state.memory = extractMemoryFromConversation([], '');
     const missingFields = getMissingFields(state.memory);
-    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions, state.memory, missingFields);
-    steps.push('✅ Built system prompt for AI');
-    logs.push('System prompt prepared for: ' + missingFields.join(', '));
+    steps.push('✅ Extracted memory, missing fields: ' + missingFields.join(', '));
+    logs.push('Missing fields: ' + missingFields.join(', '));
 
-    console.log('[SIMULATE] ✅ Simulation initialization complete');
+    // STEP 5: Build system prompt
+    console.log('[SIMULATE] 5. Building system prompt...');
+    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions, state.memory, missingFields);
+    steps.push('✅ Built system prompt');
+    logs.push('System prompt ready');
+
+    // STEP 6: Generate AI greeting
+    console.log('[SIMULATE] 6. Generating initial AI greeting...');
+    const greeting = 'Guten Tag, Sie sind mit der Zahnarztpraxis ' + clinic.name + ' in der Karl-Liebknecht-Straße 1 in Leipzig verbunden. Wie kann ich Ihnen helfen?';
+    state.messages.push({
+      role: 'assistant',
+      content: greeting
+    });
+    steps.push('✅ Generated greeting');
+    logs.push('Greeting message added to conversation');
+
+    // STEP 7: Simulate one turn with sample input
+    console.log('[SIMULATE] 7. Simulating conversation turn...');
+    const sampleInput = 'Guten Tag, ich habe Zahnschmerzen und möchte morgen einen Termin.';
+    state.messages.push({
+      role: 'user',
+      content: sampleInput
+    });
+    steps.push('✅ Added sample user input');
+    logs.push('Sample input: ' + sampleInput.substring(0, 50) + '...');
+
+    // STEP 8: Extract memory from this turn
+    console.log('[SIMULATE] 8. Extracting memory from conversation...');
+    state.memory = extractMemoryFromConversation(state.messages, sampleInput);
+    const updatedMissingFields = getMissingFields(state.memory);
+    steps.push('✅ Extracted memory - missing: ' + updatedMissingFields.join(', '));
+    logs.push('Extracted: name=' + (state.memory.name || 'null') + ', reason=' + (state.memory.reason || 'null') + ', urgency=' + state.memory.urgency);
+
+    // STEP 9: Call OpenAI for AI response
+    console.log('[SIMULATE] 9. Calling OpenAI for AI response...');
+    const updatedSystemPrompt = buildSystemPrompt(clinic.name, clinic.instructions, state.memory, updatedMissingFields);
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: updatedSystemPrompt },
+        ...state.messages
+      ],
+      temperature: 0.7,
+      max_tokens: 200
+    });
+    const aiResponse = completion.choices[0].message.content;
+    state.messages.push({
+      role: 'assistant',
+      content: aiResponse
+    });
+    steps.push('✅ Generated AI response');
+    logs.push('AI: ' + aiResponse.substring(0, 60) + '...');
+
+    // STEP 10: Attempt lead extraction
+    console.log('[SIMULATE] 10. Extracting lead data...');
+    let extractedLead = null;
+    try {
+      extractedLead = await extractLeadFieldsFromText(aiResponse);
+      steps.push('✅ Extracted lead fields');
+      logs.push('Lead extraction attempted');
+    } catch (leadErr) {
+      console.error('[SIMULATE] Lead extraction failed (non-critical):', leadErr.message);
+      logs.push('Lead extraction failed (non-critical)');
+    }
+
+    console.log('[SIMULATE] ✅ Full simulation complete!');
     return {
       sessionId,
-      greeting,
       clinic: {
         name: clinic.name,
         phone_number: clinic.phone_number
       },
+      greeting,
+      firstAIResponse: aiResponse,
+      memory: state.memory,
+      missingFields: updatedMissingFields,
+      extractedLead,
       steps,
       logs
     };
   } catch (error) {
-    console.error('[SIMULATE] ❌ Error during initialization:', error.message);
+    console.error('[SIMULATE] ❌ Simulation error:', error.message);
     throw error;
   }
 }
 
-// GET endpoint for simulator status check - runs full simulation initialization
+// GET endpoint - runs full Selaro simulation
 app.get('/api/simulate', async (req, res) => {
   try {
-    console.log('GET /api/simulate hit');
-    const result = await initializeSimulation();
+    console.log('Starting full Selaro simulation...');
+    const result = await runFullSimulation();
     return res.json({
       ok: true,
       result
     });
   } catch (err) {
-    console.error('Error in /api/simulate:', err);
-    return res.status(500).json({ ok: false, error: err.message });
+    console.error('Simulation error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
   }
 });
 
