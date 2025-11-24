@@ -8716,14 +8716,85 @@ app.post('/api/twilio/voice/step', async (req, res) => {
   }
 });
 
-// GET endpoint for simulator status check
+/**
+ * Initialize a fresh simulation session
+ * Returns: { sessionId, greeting, clinic, steps, logs }
+ */
+async function initializeSimulation() {
+  console.log('[SIMULATE] 1. Starting simulation initialization...');
+  const steps = [];
+  const logs = [];
+
+  try {
+    // STEP 1: Create fresh session
+    console.log('[SIMULATE] 2. Creating fresh session...');
+    const sessionId = `sim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    steps.push('✅ Created session: ' + sessionId);
+    logs.push('Fresh session created with ID: ' + sessionId);
+
+    // STEP 2: Fetch clinic data
+    console.log('[SIMULATE] 3. Fetching clinic data from Supabase...');
+    const clinic = await getClinic();
+    steps.push('✅ Fetched clinic: ' + clinic.name);
+    logs.push('Clinic loaded: ' + clinic.name);
+
+    // STEP 3: Initialize conversation state
+    console.log('[SIMULATE] 4. Initializing conversation state...');
+    const state = {
+      messages: [],
+      leadSaved: false,
+      memory: {
+        name: null,
+        phone: null,
+        reason: null,
+        urgency: null,
+        preferred_time: null,
+        patient_type: null,
+        insurance_status: null
+      }
+    };
+    simulatorSessions.set(sessionId, state);
+    steps.push('✅ Initialized conversation state');
+    logs.push('Conversation state initialized with empty memory');
+
+    // STEP 4: Generate greeting
+    console.log('[SIMULATE] 5. Generating initial greeting...');
+    const greeting = 'Guten Tag, Sie sind mit der Zahnarztpraxis ' + clinic.name + ' verbunden. Wie kann ich Ihnen helfen?';
+    steps.push('✅ Generated greeting');
+    logs.push('Greeting: ' + greeting.substring(0, 80) + '...');
+
+    // STEP 5: Build initial system prompt
+    console.log('[SIMULATE] 6. Building system prompt...');
+    const missingFields = getMissingFields(state.memory);
+    const systemPrompt = buildSystemPrompt(clinic.name, clinic.instructions, state.memory, missingFields);
+    steps.push('✅ Built system prompt for AI');
+    logs.push('System prompt prepared for: ' + missingFields.join(', '));
+
+    console.log('[SIMULATE] ✅ Simulation initialization complete');
+    return {
+      sessionId,
+      greeting,
+      clinic: {
+        name: clinic.name,
+        phone_number: clinic.phone_number
+      },
+      steps,
+      logs
+    };
+  } catch (error) {
+    console.error('[SIMULATE] ❌ Error during initialization:', error.message);
+    throw error;
+  }
+}
+
+// GET endpoint for simulator status check - runs full simulation initialization
 app.get('/api/simulate', async (req, res) => {
   try {
     console.log('GET /api/simulate hit');
+    const result = await initializeSimulation();
     return res.json({
       ok: true,
-      message: 'simulate endpoint working',
-      timestamp: new Date().toISOString(),
+      result
     });
   } catch (err) {
     console.error('Error in /api/simulate:', err);
